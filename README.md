@@ -13,5 +13,5 @@ IoT hydroponics setup with telemetry
 - SimpleDHT: https://github.com/winlinvip/SimpleDHT 
 - u8g2: https://github.com/olikraus/u8g2
 - Google Cloud IoT JWT: https://github.com/GoogleCloudPlatform/google-cloud-iot-arduino
-- 
+- MQTT for Arduino: https://github.com/256dpi/arduino-mqtt
 
