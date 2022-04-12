@@ -1,5 +1,6 @@
 # ESP32_hydroponics
 IoT hydroponics setup with telemetry
+Built inside IKEA SAMLA box
 
 ### Features
 - Air temperature and humidity measurement
