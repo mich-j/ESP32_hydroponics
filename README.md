@@ -14,4 +14,5 @@ IoT hydroponics setup with telemetry
 - u8g2: https://github.com/olikraus/u8g2
 - Google Cloud IoT JWT: https://github.com/GoogleCloudPlatform/google-cloud-iot-arduino
 - MQTT for Arduino: https://github.com/256dpi/arduino-mqtt
+- ESP32 Timer Interrupt: https://github.com/khoih-prog/ESP32TimerInterrupt
 
