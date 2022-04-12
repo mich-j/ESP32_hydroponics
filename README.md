@@ -1,6 +1,14 @@
 # ESP32_hydroponics
 IoT hydroponics setup with telemetry
 
+### Features
+- Air temperature and humidity measurement
+- Remote control via MQTT protocol
+- Pump flow control
+- Low water level alert
+- Fan for controlling humidity and supplying oxygen
+- OLED screen for displaying system status
+
 ### Used libraries:
 - SimpleDHT: https://github.com/winlinvip/SimpleDHT 
 - u8g2: https://github.com/olikraus/u8g2
