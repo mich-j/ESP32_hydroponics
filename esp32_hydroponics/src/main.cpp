@@ -5,11 +5,15 @@
 
 #define _TIMERINTERRUPT_LOGLEVEL_ 4
 
+
 #include <ESP32TimerInterrupt.h>
 
 // Pins
-#define OLED_CLOCK 20
-#define OLED_DATA 21
+#define OLED_CLOCK_PIN 20
+#define OLED_DATA_PIN 21
+#define WATER_PUMP_PIN 34
+#define FAN_PIN 35
+#define AIR_PIN 36
 
 #define TIM0_INTERVAL 3000
 
@@ -18,7 +22,7 @@ int dht_pin = 2;
 struct States
 {
   uint8_t led;
-  uint8_t water;
+  uint8_t air;
   uint8_t fan;
   uint8_t pump;
 };
@@ -32,7 +36,7 @@ int DHTerror = SimpleDHTErrSuccess;
 
 // konstruktory
 SimpleDHT22 dht22(dht_pin);
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK, OLED_DATA, /* reset=*/U8X8_PIN_NONE);
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK_PIN, OLED_DATA_PIN, /* reset=*/U8X8_PIN_NONE);
 
 ESP32Timer ITimer0(0);
 
@@ -69,4 +73,19 @@ void DHT_getTempHum(void)
     u8g2.print(SimpleDHTErrCode(DHTerror));
     u8g2.sendBuffer();
   }
+}
+
+bool CheckStatesDiff(States curr, States prevy){
+  int *curr_ptr;
+  int *prevy_ptr;
+
+  bool is_diff = false;
+
+  for(int i = 0; i<3; i++){
+    if(*(curr_ptr+i) != *(prevy_ptr+i)){
+      is_diff=true;
+    }
+  }
+
+  return is_diff;
 }
