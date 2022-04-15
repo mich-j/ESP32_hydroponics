@@ -15,14 +15,14 @@
 // This file contains your configuration used to connect to Cloud IoT Core
 
 // Wifi network details.
-const char *ssid = "SSID";
-const char *password = "PASSWORD";
+const char *ssid = "Ecuador";
+const char *password = "slodkiekotki69";
 
 // Cloud iot details.
-const char *project_id = "project-id";
-const char *location = "us-central1";
-const char *registry_id = "my-registry";
-const char *device_id = "my-esp32-device";
+const char *project_id = "test-mqtt-344316";
+const char *location = "europe-west1";
+const char *registry_id = "test_registry";
+const char *device_id = "atest-dev";
 
 // Configuration for NTP
 const char* ntp_primary = "pool.ntp.org";
@@ -41,9 +41,9 @@ const char* ntp_secondary = "time.nist.gov";
 // it's smaller add "00:" to the start. If it's too big or too small something
 // is probably wrong with your key.
 const char *private_key_str =
-    "6e:b8:17:35:c7:fc:6b:d7:a9:cb:cb:49:7f:a0:67:"
-    "63:38:b0:90:57:57:e0:c0:9a:e8:6f:06:0c:d9:ee:"
-    "31:41";
+    "76:da:1d:96:b0:b0:55:9c:7f:2e:8a:a9:31:0e:4b:"
+    "80:d8:2e:cd:3c:89:44:62:24:c0:e2:1c:97:5e:e5:"
+    "16:bb";
 
 // Time (seconds) to expire token += 20 minutes for drift
 const int jwt_exp_secs = 60*20; // Maximum 24H (3600*24)
@@ -55,24 +55,23 @@ const int jwt_exp_secs = 60*20; // Maximum 24H (3600*24)
 // Copy the certificate (all lines between and including ---BEGIN CERTIFICATE---
 // and --END CERTIFICATE--) to root.cert and put here on the root_cert variable.
 
-// Alternatively, get Google's minimal root CA set for mqtt.2030.ltsapis.goog.
-// https://cloud.google.com/iot/docs/how-tos/mqtt-bridge#downloading_mqtt_server_certificates
-//   wget https://pki.goog/gtsltsr/gtsltsr.crt
-//   openssl x509 -inform DER -in gtsltsr.crt -out primary.pem -text
-
 const char *root_cert =
     "-----BEGIN CERTIFICATE-----\n"
-    "MIIBxTCCAWugAwIBAgINAfD3nVndblD3QnNxUDAKBggqhkjOPQQDAjBEMQswCQYD\n"
-    "VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzERMA8G\n"
-    "A1UEAxMIR1RTIExUU1IwHhcNMTgxMTAxMDAwMDQyWhcNNDIxMTAxMDAwMDQyWjBE\n"
-    "MQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExM\n"
-    "QzERMA8GA1UEAxMIR1RTIExUU1IwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN\n"
-    "8YyO2u+yCQoZdwAkUNv5c3dokfULfrA6QJgFV2XMuENtQZIG5HUOS6jFn8f0ySlV\n"
-    "eORCxqFyjDJyRn86d+Iko0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUw\n"
-    "AwEB/zAdBgNVHQ4EFgQUPv7/zFLrvzQ+PfNA0OQlsV+4u1IwCgYIKoZIzj0EAwID\n"
-    "SAAwRQIhAPKuf/VtBHqGw3TUwUIq7TfaExp3bH7bjCBmVXJupT9FAiBr0SmCtsuk\n"
-    "miGgpajjf/gFigGM34F9021bCWs1MbL0SA==\n"
-    "-----END CERTIFICATE-----\n";
+"MIICjzCCAhWgAwIBAgIQXIuZxVqUxdJxVt7NiYDMJjAKBggqhkjOPQQDAzCBiDEL"
+"MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl"
+"eSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMT"
+"JVVTRVJUcnVzdCBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAwMjAx"
+"MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgT"
+"Ck5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUg"
+"VVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBFQ0MgQ2VydGlm"
+"aWNhdGlvbiBBdXRob3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQarFRaqflo"
+"I+d61SRvU8Za2EurxtW20eZzca7dnNYMYf3boIkDuAUU7FfO7l0/4iGzzvfUinng"
+"o4N+LZfQYcTxmdwlkWOrfzCjtHDix6EznPO/LlxTsV+zfTJ/ijTjeXmjQjBAMB0G"
+"A1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1xmNjmjAOBgNVHQ8BAf8EBAMCAQYwDwYD"
+"VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjA2Z6EWCNzklwBBHU6+4WMB"
+"zzuqQhFkoJ2UOQIReVx7Hfpkue4WQrO/isIJxOzksU0CMQDpKmFHjFJKS04YcPbW"
+"RNZu9YO6bVi9JNlWSOrvxKJGgYhqOkbRqZtNyWHa0V1Xahg=\n"
+"-----END CERTIFICATE-----\n";
 
 // In case we ever need extra topics
 const int ex_num_topics = 0;

@@ -1,12 +1,11 @@
 #include <Arduino.h>
+#include "ESP32TimerInterrupt.h"
 #include <SimpleDHT.h>
 #include <U8g2lib.h>
 #include "esp32-mqtt.h"
 
 #define _TIMERINTERRUPT_LOGLEVEL_ 4
 
-
-#include <ESP32TimerInterrupt.h>
 
 // Pins
 #define OLED_CLOCK_PIN 20
@@ -16,6 +15,7 @@
 #define AIR_PIN 36
 
 #define TIM0_INTERVAL 3000
+#define TIMER0_DURATION_MS        5000
 
 int dht_pin = 2;
 
