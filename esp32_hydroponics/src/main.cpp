@@ -5,7 +5,7 @@
 #include "ESP32_New_TimerInterrupt.h"
 #include <SimpleDHT.h>
 #include <U8g2lib.h>
-#include "esp32-mqtt.h"
+
 #include <ArduinoJson.h>
 #include "ESP32_New_ISR_Timer.h"
 
@@ -63,7 +63,25 @@ ESP32Timer ITimer0(0);
 StaticJsonDocument<200> doc;
 
 // Function declarations
-void DHT_getTempHum(void);
+void SetRelay(uint8_t pin, bool state)
+{
+  digitalWrite(pin, state);
+
+}
+
+uint8_t GetWaterLevel(void){
+  dev.water_level.state = digitalRead(WATER_SENSOR_PIN);
+}
+
+void DHT_getTempHum(void)
+{
+  if ((DHTerror = dht22.read2(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess)
+  {
+    u8g2.setCursor(0, 10);
+    u8g2.print(SimpleDHTErrCode(DHTerror));
+    u8g2.sendBuffer();
+  }
+}
 
 
 bool IRAM_ATTR TimerHandler0(void *timerNo)
@@ -76,7 +94,7 @@ void setup()
 {
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB08_tr);
-  setupCloudIoT();
+
 
   ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS, TimerHandler0);
 
@@ -99,21 +117,12 @@ void loop()
   doc["waterlevel"] = dev.water_level.state;
   
   serializeJson(doc, buf);
-  publishTelemetry(buf);
-}
-
-
-
-void DHT_getTempHum(void)
-{
-  if ((DHTerror = dht22.read2(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess)
-  {
-    u8g2.setCursor(0, 10);
-    u8g2.print(SimpleDHTErrCode(DHTerror));
-    u8g2.sendBuffer();
-  }
 
 }
+
+
+
+
 
 // bool CheckStatesDiff(States curr, States prevy)
 // {
@@ -133,12 +142,3 @@ void DHT_getTempHum(void)
 //   return is_diff;
 // }
 
-void SetRelay(uint8_t pin, bool state)
-{
-  digitalWrite(pin, state);
-
-}
-
-uint8_t GetWaterLevel(void){
-  dev.water_level.state = digitalRead(WATER_SENSOR_PIN);
-}

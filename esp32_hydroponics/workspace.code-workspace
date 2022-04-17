@@ -1,6 +1,9 @@
 {
 	"folders": [
 		{
+			"path": "..\\..\\janmechatron"
+		},
+		{
 			"name": "esp32_hydroponics",
 			"path": "."
 		}
