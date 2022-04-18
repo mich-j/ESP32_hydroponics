@@ -1,14 +1,19 @@
-#define _TIMERINTERRUPT_LOGLEVEL_     4
-#define TIMER_INTERRUPT_DEBUG      0
+/*
+ * Broker MQTT: Mosquitto na Raspberry Pi
+ * Lokalny serwer Thingsboard/NODE-RED/Home Assistant, do wyświetlania wykresów i kontrolek
+ *
+ * ESP32 publikuje wiadomości z telemetrią w formacie JSON
+ *
+ *
+ */
 
 #include <Arduino.h>
-#include "ESP32_New_TimerInterrupt.h"
 #include <SimpleDHT.h>
 #include <U8g2lib.h>
-
 #include <ArduinoJson.h>
-#include "ESP32_New_ISR_Timer.h"
-
+#include <PubSubClient.h>
+#include "pass.h"
+#include <WiFi.h>
 
 //#define _TIMERINTERRUPT_LOGLEVEL_ 4
 #define WATER_OK 1
@@ -22,107 +27,146 @@
 #define LED_PIN 5
 #define FAN_PIN 35
 #define AIR_PIN 36
+#define DHT_PIN 2
 
-#define TIMER0_INTERVAL_MS 3000
-#define TIMER0_DURATION_MS 5000
+#define TEMP_HOT_THRESHOLD 25.0
+#define TEMP_COLD_THRESHOLD 20.0
 
+int wifi_status = WL_IDLE_STATUS;
 
-int dht_pin = 2;
+const char ssid[] = WIFI_SSID;
+const char pass[] = WIFI_PASSWORD;
+const char mqtt_server[] = MQTT_SERVER;
+const uint16_t wifi_port = WIFI_PORT;
+const char data_topic[] = "data"; // MQTT topic
+const char alarm_topic[] = "alarm";
+const char to_device_topic[] = "cmd";
 
-struct Device
-{
-  struct relays
-  {
-    uint8_t pin;
-    uint8_t state;
-  };
-  relays led;
-  relays air;
-  relays fan;
-  relays pump;
-  relays water_level;
-
-};
-
-
-
-Device dev;
-
-float temperature = 0;
-float humidity = 0;
-int DHTerror = SimpleDHTErrSuccess;
-
-char buf[100];
+hw_timer_t *tim_sens = NULL;
+volatile bool tim_sens_flg = false;
 
 // konstruktory
-SimpleDHT22 dht22(dht_pin);
+SimpleDHT22 dht22(DHT_PIN);
 U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK_PIN, OLED_DATA_PIN, /* reset=*/U8X8_PIN_NONE);
 
-ESP32Timer ITimer0(0);
-
-StaticJsonDocument<200> doc;
+WiFiClient esp32wifi;
+PubSubClient esp_client(esp32wifi);
 
 // Function declarations
 void SetRelay(uint8_t pin, bool state)
 {
   digitalWrite(pin, state);
-
 }
 
-uint8_t GetWaterLevel(void){
-  dev.water_level.state = digitalRead(WATER_SENSOR_PIN);
-}
-
-void DHT_getTempHum(void)
+void GetWaterLevel(bool *pstate)
 {
-  if ((DHTerror = dht22.read2(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess)
+  *pstate = digitalRead(WATER_SENSOR_PIN);
+}
+
+void callback(char *topic, byte *payload, unsigned int length)
+{
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, payload, length);
+
+  uint8_t led = doc["setled"];
+}
+
+void setupWIFIandMQTT(void)
+{
+  WiFi.mode(WIFI_STA);
+
+  esp_client.setServer("192.168.1.30", 1883);
+
+  while (wifi_status != WL_CONNECTED)
   {
-    u8g2.setCursor(0, 10);
-    u8g2.print(SimpleDHTErrCode(DHTerror));
-    u8g2.sendBuffer();
+    wifi_status = WiFi.begin(ssid, pass);
+    Serial.println("connecting to wifi: ");
+    Serial.println(WiFi.localIP());
+    delay(5000);
+  }
+
+  Serial.println("Polaczono z siecia");
+  const char *client_id = CLIENT_ID;
+  const char *client_pass = CLIENT_PASS;
+
+  // while (!client.connect("arduinoClient", client_id, client_pass))
+  while (!esp_client.connected())
+  {
+    esp_client.connect("esp", client_id, client_pass);
+    Serial.println("connecting to broker: ");
+    Serial.println(esp_client.state());
+    // client.subscribe(to_device_topic);
+    delay(5000);
   }
 }
 
-
-bool IRAM_ATTR TimerHandler0(void *timerNo)
-{
-
-  return true;
+void IRAM_ATTR tim_sens_isr(void){
+  tim_sens_flg = true;
 }
+
+float temperature = 0;
+float humidity = 0;
+bool water_level = 0;
 
 void setup()
 {
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB08_tr);
+  Serial.begin(9600);
+  Serial.println("Uruchamianie szklarni");
+  Serial.printf("CPU speed: %d MHz\n", getCpuFrequencyMhz());
+  esp_client.setCallback(callback);
+  setupWIFIandMQTT();
 
-
-  ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS, TimerHandler0);
-
-  
+  //tim_sens = timerBegin(0, )
 }
 
 void loop()
 {
-  DHT_getTempHum();
-  GetWaterLevel();
-  
+  if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
+  {
+    u8g2.setCursor(0, 10);
+    u8g2.print(SimpleDHTErrCode(DHTerror));
+    u8g2.sendBuffer();
+  }
 
-  //data for publishing
+  GetWaterLevel(&water_level);
+
+  StaticJsonDocument<255> doc;
+  StaticJsonDocument<255> alrm;
+
+  if (temperature > TEMP_HOT_THRESHOLD)
+  {
+    alrm["temp_alrm"] = "HOT";
+  }
+  else if (temperature < TEMP_COLD_THRESHOLD)
+  {
+    alrm["temp_alrm"] = "COLD";
+  }
+
+  else
+  {
+    alrm["temp_alrm"] = "OK";
+  }
+
+  char buf[256];
+
+  // data for publishing
   doc["temp"] = temperature;
   doc["hum"] = humidity;
-  doc["fan"] = dev.fan.state;
-  doc["led"] = dev.led.state;
-  doc["air"] = dev.air.state;
-  doc["pump"] = dev.pump.state;
-  doc["waterlevel"] = dev.water_level.state;
-  
+  // doc["fan"] =
+  //     doc["led"] =
+  //         doc["air"] =
+  //             doc["pump"] =
+  //                 doc["waterlevel"] = waterlevel;
+
   serializeJson(doc, buf);
+  esp_client.publish(data_topic, buf);
 
+  esp_client.loop();
+
+  delay(10000);
 }
-
-
-
-
 
 // bool CheckStatesDiff(States curr, States prevy)
 // {
@@ -141,4 +185,3 @@ void loop()
 
 //   return is_diff;
 // }
-

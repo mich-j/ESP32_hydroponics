@@ -1,12 +1,14 @@
 {
 	"folders": [
 		{
-			"path": "..\\..\\janmechatron"
-		},
-		{
 			"name": "esp32_hydroponics",
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"stdexcept": "cpp",
+			"*.tcc": "cpp"
+		}
+	}
 }
