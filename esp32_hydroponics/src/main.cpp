@@ -4,7 +4,6 @@
  *
  * ESP32 publikuje wiadomości z telemetrią w formacie JSON
  *
- *
  */
 
 #include <Arduino.h>
@@ -37,7 +36,7 @@ int wifi_status = WL_IDLE_STATUS;
 const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWORD;
 const char mqtt_server[] = MQTT_SERVER;
-const uint16_t wifi_port = WIFI_PORT;
+const uint16_t mqtt_port = MQTT_PORT;
 const char data_topic[] = "data"; // MQTT topic
 const char alarm_topic[] = "alarm";
 const char to_device_topic[] = "cmd";
@@ -75,7 +74,7 @@ void setupWIFIandMQTT(void)
 {
   WiFi.mode(WIFI_STA);
 
-  esp_client.setServer("192.168.1.30", 1883);
+  esp_client.setServer(mqtt_server, mqtt_port);
 
   while (wifi_status != WL_CONNECTED)
   {
@@ -87,12 +86,13 @@ void setupWIFIandMQTT(void)
 
   Serial.println("Polaczono z siecia");
   const char *client_id = CLIENT_ID;
+  const char* client_username = CLIENT_USERNAME;
   const char *client_pass = CLIENT_PASS;
 
   // while (!client.connect("arduinoClient", client_id, client_pass))
   while (!esp_client.connected())
   {
-    esp_client.connect("esp", client_id, client_pass);
+    esp_client.connect(client_id, client_username, client_pass);
     Serial.println("connecting to broker: ");
     Serial.println(esp_client.state());
     // client.subscribe(to_device_topic);

@@ -1,6 +1,7 @@
-#define WIFI_SSID "Orange_Swiatlowod_7940"
-#define WIFI_PASSWORD "k6Zw649aXbMFpFA5LX"
-#define MQTT_SERVER "localhost"
-#define WIFI_PORT 1883
-#define CLIENT_ID "client"
-#define CLIENT_PASS "kapusta"
+#define WIFI_SSID "Ecuador"
+#define WIFI_PASSWORD "slodkiekotki69"
+#define MQTT_SERVER "192.168.1.81"
+#define MQTT_PORT 1884
+#define CLIENT_USERNAME "esp32"
+#define CLIENT_ID "esp32id"
+#define CLIENT_PASS "hydroponika"
