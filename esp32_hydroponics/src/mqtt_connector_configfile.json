@@ -1,0 +1,122 @@
+{
+    "broker": {
+        "name": "RPi Local Broker",
+        "host": "192.168.1.81",
+        "port": 1884,
+        "clientId": "gateway",
+        "maxMessageNumberPerWorker": 10,
+        "maxNumberOfWorkers": 100,
+        "security": {
+            "type": "basic",
+            "username": "rpi",
+            "password": "hydroponika"
+        }
+    },
+    "mapping": [
+        {
+            "topicFilter": "/data",
+            "converter": {
+                "type": "json",
+                "deviceNameJsonExpression": "${serialNumber}",
+                "deviceTypeJsonExpression": "${sensorType}",
+                "timeout": 60000,
+                "timeseries": [
+                    {
+                        "type": "double",
+                        "key": "temperature",
+                        "value": "${temp}"
+                    },
+                    {
+                        "type": "double",
+                        "key": "humidity",
+                        "value": "${hum}"
+                    }
+                ]
+            }
+        },
+        {
+            "topicFilter": "/status",
+            "converter": {
+                "type": "json",
+                "deviceNameJsonExpression": "${serialNumber}",
+                "deviceTypeJsonExpression": "${sensorType}",
+                "timeout": 60000,
+                "timeseries": [
+                    {
+                        "type": "int",
+                        "key": "led_state",
+                        "value": "${led}"
+                    },
+                    {
+                        "type": "bool",
+                        "key": "fan_state",
+                        "value": "${fan}"
+                    },
+                    {
+                        "type": "bool",
+                        "key": "waterlvl_state",
+                        "value": "${waterlvl}"
+                    },
+                    {
+                        "type": "int",
+                        "key": "pump_speed",
+                        "value": "${pump_pwm}"
+                    }
+                ]
+            }
+        }
+    ],
+    "connectRequests": [
+        {
+            "topicFilter": "/sensor/connect",
+            "deviceNameJsonExpression": "${serialNumber}"
+        },
+        {
+            "topicFilter": "/sensor/+/connect",
+            "deviceNameTopicExpression": "(?<=sensor\/)(.*?)(?=\/connect)"
+        }
+    ],
+    "disconnectRequests": [
+        {
+            "topicFilter": "/sensor/disconnect",
+            "deviceNameJsonExpression": "${serialNumber}"
+        },
+        {
+            "topicFilter": "/sensor/+/disconnect",
+            "deviceNameTopicExpression": "(?<=sensor\/)(.*?)(?=\/disconnect)"
+        }
+    ],
+    "attributeRequests": [
+        {
+            "retain": false,
+            "topicFilter": "v1/devices/me/attributes/request",
+            "topicExpression": "${SerialNumber}",
+            "valueExpression": "${sensorModel}"
+        }
+    ],
+    "attributeUpdates": [
+        {
+            "retain": false,
+            "deviceNameFilter": "SN.*",
+            "attributeFilter": "uploadFrequency",
+            "topicExpression": "sensor/${deviceName}/${attributeKey}",
+            "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
+        }
+    ],
+    "serverSideRpc": [
+        {
+            "deviceNameFilter": "SN.*",
+            "methodFilter": "echo",
+            "requestTopicExpression": "/sensor/${deviceName}/request/${methodName}/${requestId}",
+            "responseTopicExpression": "/sensor/${deviceName}/response/${methodName}/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        },
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "no-reply",
+            "requestTopicExpression": "/sensor/${deviceName}/request/${methodName}/${requestId}",
+            "valueExpression": "${params.hum}::${params.temp}"
+        }
+    ]
+}

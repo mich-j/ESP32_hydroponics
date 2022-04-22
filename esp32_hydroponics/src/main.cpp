@@ -19,19 +19,20 @@
 #define WATER_LOW 0
 
 // Pins
-#define OLED_CLOCK_PIN 20
+#define OLED_CLOCK_PIN 22
 #define OLED_DATA_PIN 21
 #define WATER_PUMP_PIN 34
-#define WATER_SENSOR_PIN 14
+#define WATER_SENSOR_PIN 23
 #define LED_PIN 5
 #define FAN_PIN 35
 #define AIR_PIN 36
-#define DHT_PIN 2
+#define DHT_PIN 18
 
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
-int wifi_status = WL_IDLE_STATUS;
+uint8_t wifi_status = WL_IDLE_STATUS;
+uint8_t lineht;
 
 const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWORD;
@@ -39,6 +40,7 @@ const char mqtt_server[] = MQTT_SERVER;
 const uint16_t mqtt_port = MQTT_PORT;
 const char data_topic[] = "data"; // MQTT topic
 const char alarm_topic[] = "alarm";
+const char status_topic[] = "status";
 const char to_device_topic[] = "cmd";
 
 hw_timer_t *tim_sens = NULL;
@@ -70,23 +72,45 @@ void callback(char *topic, byte *payload, unsigned int length)
   uint8_t led = doc["setled"];
 }
 
-void setupWIFIandMQTT(void)
+void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
+{
+  u8g2.setCursor(cur_x, cur_y);
+  u8g2.print(buffer);
+  u8g2.sendBuffer();
+
+  Serial.println(buffer);
+}
+
+void setupWIFI(void)
 {
   WiFi.mode(WIFI_STA);
 
   esp_client.setServer(mqtt_server, mqtt_port);
 
+  oledPrint(0, 10, "connecting");
+
+  uint8_t cnt = 0;
   while (wifi_status != WL_CONNECTED)
   {
-    wifi_status = WiFi.begin(ssid, pass);
-    Serial.println("connecting to wifi: ");
-    Serial.println(WiFi.localIP());
-    delay(5000);
-  }
 
-  Serial.println("Polaczono z siecia");
+    wifi_status = WiFi.begin(ssid, pass);
+    oledPrint(cnt * 5, lineht, ".");
+
+    delay(5000);
+    cnt++;
+  }
+  u8g2.clear();
+  Serial.print("Polaczono z siecia: ");
+  Serial.println(WiFi.SSID());
+  Serial.print("Adres IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void setupMQTT(void)
+{
+
   const char *client_id = CLIENT_ID;
-  const char* client_username = CLIENT_USERNAME;
+  const char *client_username = CLIENT_USERNAME;
   const char *client_pass = CLIENT_PASS;
 
   // while (!client.connect("arduinoClient", client_id, client_pass))
@@ -100,29 +124,40 @@ void setupWIFIandMQTT(void)
   }
 }
 
-void IRAM_ATTR tim_sens_isr(void){
+void IRAM_ATTR tim_sens_isr(void)
+{
   tim_sens_flg = true;
 }
 
 float temperature = 0;
 float humidity = 0;
 bool water_level = 0;
+uint8_t pump_pwm = 0;
+uint8_t led_pwm = 0;
+bool fan = 0;
 
 void setup()
 {
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB08_tr);
+  u8g2.clear();
+  lineht = u8g2.getMaxCharHeight() + 10;
   Serial.begin(9600);
   Serial.println("Uruchamianie szklarni");
   Serial.printf("CPU speed: %d MHz\n", getCpuFrequencyMhz());
   esp_client.setCallback(callback);
-  setupWIFIandMQTT();
+  setupWIFI();
+  setupMQTT();
 
-  //tim_sens = timerBegin(0, )
+  // tim_sens = timerBegin(0, )
+
+  pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
 }
 
 void loop()
 {
+  char *buf = new char[255];
+
   if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
   {
     u8g2.setCursor(0, 10);
@@ -130,7 +165,14 @@ void loop()
     u8g2.sendBuffer();
   }
 
+  u8g2.clear();
+  sprintf(buf, "Temp: %.1f *C", temperature);
+  oledPrint(0, 10, buf);
+  sprintf(buf, "Hum: %d RH", (int)humidity);
+  oledPrint(0, 10 + lineht, buf);
+
   GetWaterLevel(&water_level);
+  Serial.println(water_level);
 
   StaticJsonDocument<255> doc;
   StaticJsonDocument<255> alrm;
@@ -149,8 +191,6 @@ void loop()
     alrm["temp_alrm"] = "OK";
   }
 
-  char buf[256];
-
   // data for publishing
   doc["temp"] = temperature;
   doc["hum"] = humidity;
@@ -160,8 +200,18 @@ void loop()
   //             doc["pump"] =
   //                 doc["waterlevel"] = waterlevel;
 
-  serializeJson(doc, buf);
-  esp_client.publish(data_topic, buf);
+  char mqtt_msg[255];
+
+  serializeJson(doc, mqtt_msg);
+  esp_client.publish(data_topic, mqtt_msg);
+
+  doc.clear();
+  doc["waterlvl"] = water_level;
+  doc["pump_pwm"] = pump_pwm;
+  doc["fan"] = fan;
+  doc["led"] = led_pwm;
+  serializeJson(doc, mqtt_msg);
+  esp_client.publish(status_topic, mqtt_msg);
 
   esp_client.loop();
 
