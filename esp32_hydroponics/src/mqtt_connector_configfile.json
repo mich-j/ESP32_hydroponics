@@ -14,12 +14,24 @@
     },
     "mapping": [
         {
-            "topicFilter": "/data",
+            "topicFilter": "/sensor/data",
             "converter": {
                 "type": "json",
                 "deviceNameJsonExpression": "${serialNumber}",
                 "deviceTypeJsonExpression": "${sensorType}",
                 "timeout": 60000,
+                "attributes": [
+                    {
+                        "type": "string",
+                        "key": "model",
+                        "value": "${sensorModel}"
+                    },
+                    {
+                        "type": "string",
+                        "key": "${sensorModel}",
+                        "value": "on"
+                    }
+                ],
                 "timeseries": [
                     {
                         "type": "double",
@@ -30,18 +42,7 @@
                         "type": "double",
                         "key": "humidity",
                         "value": "${hum}"
-                    }
-                ]
-            }
-        },
-        {
-            "topicFilter": "/status",
-            "converter": {
-                "type": "json",
-                "deviceNameJsonExpression": "${serialNumber}",
-                "deviceTypeJsonExpression": "${sensorType}",
-                "timeout": 60000,
-                "timeseries": [
+                    },
                     {
                         "type": "int",
                         "key": "led_state",
@@ -70,39 +71,9 @@
         {
             "topicFilter": "/sensor/connect",
             "deviceNameJsonExpression": "${serialNumber}"
-        },
-        {
-            "topicFilter": "/sensor/+/connect",
-            "deviceNameTopicExpression": "(?<=sensor\/)(.*?)(?=\/connect)"
         }
     ],
-    "disconnectRequests": [
-        {
-            "topicFilter": "/sensor/disconnect",
-            "deviceNameJsonExpression": "${serialNumber}"
-        },
-        {
-            "topicFilter": "/sensor/+/disconnect",
-            "deviceNameTopicExpression": "(?<=sensor\/)(.*?)(?=\/disconnect)"
-        }
-    ],
-    "attributeRequests": [
-        {
-            "retain": false,
-            "topicFilter": "v1/devices/me/attributes/request",
-            "topicExpression": "${SerialNumber}",
-            "valueExpression": "${sensorModel}"
-        }
-    ],
-    "attributeUpdates": [
-        {
-            "retain": false,
-            "deviceNameFilter": "SN.*",
-            "attributeFilter": "uploadFrequency",
-            "topicExpression": "sensor/${deviceName}/${attributeKey}",
-            "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
-        }
-    ],
+   
     "serverSideRpc": [
         {
             "deviceNameFilter": "SN.*",

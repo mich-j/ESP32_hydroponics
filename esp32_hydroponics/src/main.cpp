@@ -38,7 +38,8 @@ const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWORD;
 const char mqtt_server[] = MQTT_SERVER;
 const uint16_t mqtt_port = MQTT_PORT;
-const char data_topic[] = "data"; // MQTT topic
+const char device_name[] = "esp32telemetry";
+const char data_topic[] = "/sensor/data"; // MQTT topic
 const char alarm_topic[] = "alarm";
 const char status_topic[] = "status";
 const char to_device_topic[] = "cmd";
@@ -121,6 +122,14 @@ void setupMQTT(void)
     Serial.println(esp_client.state());
     // client.subscribe(to_device_topic);
     delay(5000);
+
+    char msg[255];
+
+    StaticJsonDocument<255> doc;
+    doc["serialNumber"] = device_name;
+    serializeJson(doc, msg);
+    esp_client.publish("/sensor/connect", msg);
+
   }
 }
 
@@ -192,13 +201,15 @@ void loop()
   }
 
   // data for publishing
+  doc["serialNumber"] = device_name;
+  doc["sensorType"] = "Hydroponics";
+  doc["sensorModel"] = "telemetry";
   doc["temp"] = temperature;
   doc["hum"] = humidity;
-  // doc["fan"] =
-  //     doc["led"] =
-  //         doc["air"] =
-  //             doc["pump"] =
-  //                 doc["waterlevel"] = waterlevel;
+  doc["led"] = led_pwm;
+  doc["fan"] = fan;
+  doc["waterlvl"] = water_level;
+  doc["pump_pwm"] = pump_pwm;
 
   char mqtt_msg[255];
 
@@ -206,16 +217,11 @@ void loop()
   esp_client.publish(data_topic, mqtt_msg);
 
   doc.clear();
-  doc["waterlvl"] = water_level;
-  doc["pump_pwm"] = pump_pwm;
-  doc["fan"] = fan;
-  doc["led"] = led_pwm;
-  serializeJson(doc, mqtt_msg);
-  esp_client.publish(status_topic, mqtt_msg);
+
 
   esp_client.loop();
 
-  delay(10000);
+  delay(60000);
 }
 
 // bool CheckStatesDiff(States curr, States prevy)
