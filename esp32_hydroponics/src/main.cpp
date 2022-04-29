@@ -109,7 +109,6 @@ void setupWIFI(void)
 
 void setupMQTT(void)
 {
-
   const char *client_id = CLIENT_ID;
   const char *client_username = CLIENT_USERNAME;
   const char *client_pass = CLIENT_PASS;
