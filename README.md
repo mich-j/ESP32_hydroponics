@@ -3,18 +3,21 @@ IoT hydroponics setup with telemetry, built inside IKEA SAMLA box.
 
 ESP32 Devkit module was used to handle sensors and publish data via MQTT.
 
-Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output and display a dashboard, accessible within local network. Raspberry also works as a MQTT broker and gateway for communication with Thingsboard.
+Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output and display a dashboard with charts and gauges, accessible within local network. Raspberry also works as a MQTT broker and gateway for communication with Thingsboard.
 
+Code written in Arduino Framework for ESP32.
 
 ### Features
 - Air temperature and humidity measurement
 - Built as a Nutrient Film Technique (NFT) system
 - Remote control via MQTT protocol
 - Dashboard with gauges and charts
-- Pump flow control
+- PWM Pump flow control
 - Low water level alert
 - Fan for controlling humidity and supplying oxygen
 - OLED screen for displaying system status
+
+<skrin dashboardu>
   
 ### Used software:
 - Mosquitto MQTT broker: https://mosquitto.org/
