@@ -1,8 +1,10 @@
-/*
+/** v1
+ * Obecnie działa:
  * Broker MQTT: Mosquitto na Raspberry Pi
- * Lokalny serwer Thingsboard/NODE-RED/Home Assistant, do wyświetlania wykresów i kontrolek
- *
- * ESP32 publikuje wiadomości z telemetrią w formacie JSON
+ * Lokalny serwer Thingsboard na Raspberry Pi  do wyświetlania wykresów i kontrolek
+ * ESP32 publikuje wiadomości z telemetrią (pomiary z sensorów oraz stan wyjść) w formacie JSON
+ * 
+ * https://github.com/mich-j/ESP32_hydroponics
  *
  */
 
