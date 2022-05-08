@@ -1,14 +1,12 @@
 {
 	"folders": [
 		{
+			"path": "..\\..\\..\\PlatformIO\\Projects\\esp32_oled"
+		},
+		{
 			"name": "esp32_hydroponics",
 			"path": "."
 		}
 	],
-	"settings": {
-		"files.associations": {
-			"stdexcept": "cpp",
-			"*.tcc": "cpp"
-		}
-	}
+	"settings": {}
 }

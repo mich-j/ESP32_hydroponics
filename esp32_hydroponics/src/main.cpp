@@ -3,7 +3,7 @@
  * Broker MQTT: Mosquitto na Raspberry Pi
  * Lokalny serwer Thingsboard na Raspberry Pi  do wyświetlania wykresów i kontrolek
  * ESP32 publikuje wiadomości z telemetrią (pomiary z sensorów oraz stan wyjść) w formacie JSON
- * 
+ *
  * https://github.com/mich-j/ESP32_hydroponics
  *
  */
@@ -25,16 +25,21 @@
 #define OLED_DATA_PIN 21
 #define WATER_PUMP_PIN 34
 #define WATER_SENSOR_PIN 23
-#define LED_PIN 5
+#define LED_PIN 23
+#define LED_CHANNEL 0
 #define FAN_PIN 35
 #define AIR_PIN 36
 #define DHT_PIN 18
+#define MODE_AUTO 0
+#define MODE_MANUAL 1
 
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
+
+uint8_t MODE = MODE_MANUAL;
 
 const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWORD;
@@ -44,7 +49,7 @@ const char device_name[] = "esp32telemetry";
 const char data_topic[] = "/sensor/data"; // MQTT topic
 const char alarm_topic[] = "alarm";
 const char status_topic[] = "status";
-const char to_device_topic[] = "cmd";
+const char rpc_response_topic[] = "v1/devices/me/rpc/request/";
 
 hw_timer_t *tim_sens = NULL;
 volatile bool tim_sens_flg = false;
@@ -121,7 +126,7 @@ void setupMQTT(void)
     esp_client.connect(client_id, client_username, client_pass);
     Serial.println("connecting to broker: ");
     Serial.println(esp_client.state());
-    // client.subscribe(to_device_topic);
+    
     delay(5000);
 
     char msg[255];
@@ -131,6 +136,7 @@ void setupMQTT(void)
     serializeJson(doc, msg);
     esp_client.publish("/sensor/connect", msg);
 
+    esp_client.subscribe("v1/devices/me/rpc/request/+");
   }
 }
 
@@ -139,8 +145,13 @@ void IRAM_ATTR tim_sens_isr(void)
   tim_sens_flg = true;
 }
 
-float temperature = 0;
-float humidity = 0;
+void setPWM(uint8_t channel, uint8_t dutyCycle)
+{
+  ledcWrite(channel, dutyCycle);
+}
+
+float_t temperature = 0;
+float_t humidity = 0;
 bool water_level = 0;
 uint8_t pump_pwm = 0;
 uint8_t led_pwm = 0;
@@ -159,69 +170,79 @@ void setup()
   setupWIFI();
   setupMQTT();
 
-  // tim_sens = timerBegin(0, )
+  ledcSetup(LED_CHANNEL, 1000, 8);
+  ledcAttachPin(LED_PIN, LED_CHANNEL);
 
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
 }
 
 void loop()
 {
-  char *buf = new char[255];
-
-  if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
+  if (MODE == MODE_MANUAL)
   {
-    u8g2.setCursor(0, 10);
-    u8g2.print(SimpleDHTErrCode(DHTerror));
-    u8g2.sendBuffer();
+    char *buf = new char[255];
+
+    if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
+    {
+      u8g2.setCursor(0, 10);
+      u8g2.print(SimpleDHTErrCode(DHTerror));
+      u8g2.sendBuffer();
+    }
+
+    u8g2.clear();
+    sprintf(buf, "Temp: %.1f *C", temperature);
+    oledPrint(0, 10, buf);
+    sprintf(buf, "Hum: %d RH", (int)humidity);
+    oledPrint(0, 10 + lineht, buf);
+
+    GetWaterLevel(&water_level);
+    Serial.println(water_level);
+
+    StaticJsonDocument<255> doc;
+    StaticJsonDocument<255> alrm;
+
+    if (temperature > TEMP_HOT_THRESHOLD)
+    {
+      alrm["temp_alrm"] = "HOT";
+    }
+    else if (temperature < TEMP_COLD_THRESHOLD)
+    {
+      alrm["temp_alrm"] = "COLD";
+    }
+
+    else
+    {
+      alrm["temp_alrm"] = "OK";
+    }
+
+    // data for publishing
+    doc["serialNumber"] = device_name;
+    doc["sensorType"] = "Hydroponics";
+    doc["sensorModel"] = "telemetry";
+    doc["temp"] = temperature;
+    doc["hum"] = humidity;
+    doc["led"] = led_pwm;
+    doc["fan"] = fan;
+    doc["waterlvl"] = water_level;
+    doc["pump_pwm"] = pump_pwm;
+
+    char mqtt_msg[255];
+
+    serializeJson(doc, mqtt_msg);
+    esp_client.publish(data_topic, mqtt_msg);
+
+    doc.clear();
+
+    setPWM(LED_CHANNEL, led_pwm);
+
+    esp_client.loop();
+
+    
   }
 
-  u8g2.clear();
-  sprintf(buf, "Temp: %.1f *C", temperature);
-  oledPrint(0, 10, buf);
-  sprintf(buf, "Hum: %d RH", (int)humidity);
-  oledPrint(0, 10 + lineht, buf);
+  if(MODE == MODE_AUTO){
 
-  GetWaterLevel(&water_level);
-  Serial.println(water_level);
-
-  StaticJsonDocument<255> doc;
-  StaticJsonDocument<255> alrm;
-
-  if (temperature > TEMP_HOT_THRESHOLD)
-  {
-    alrm["temp_alrm"] = "HOT";
   }
-  else if (temperature < TEMP_COLD_THRESHOLD)
-  {
-    alrm["temp_alrm"] = "COLD";
-  }
-
-  else
-  {
-    alrm["temp_alrm"] = "OK";
-  }
-
-  // data for publishing
-  doc["serialNumber"] = device_name;
-  doc["sensorType"] = "Hydroponics";
-  doc["sensorModel"] = "telemetry";
-  doc["temp"] = temperature;
-  doc["hum"] = humidity;
-  doc["led"] = led_pwm;
-  doc["fan"] = fan;
-  doc["waterlvl"] = water_level;
-  doc["pump_pwm"] = pump_pwm;
-
-  char mqtt_msg[255];
-
-  serializeJson(doc, mqtt_msg);
-  esp_client.publish(data_topic, mqtt_msg);
-
-  doc.clear();
-
-
-  esp_client.loop();
-
   delay(60000);
 }
 
