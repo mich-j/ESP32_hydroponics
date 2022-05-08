@@ -1,7 +1,7 @@
 # ESP32_hydroponics
 IoT hydroponics setup with telemetry, built inside IKEA SAMLA box. 
 
-ESP32 Devkit module was used to handle sensors and publish data via MQTT.
+ESP32 Devkit module was used to process data from sensors and publish messages with telemetry via MQTT.
 
 Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output and display a dashboard with charts and gauges, accessible within local network. Raspberry also works as a MQTT broker and gateway for communication with Thingsboard.
 
