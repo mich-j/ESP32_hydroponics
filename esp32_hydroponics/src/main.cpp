@@ -10,7 +10,6 @@
 // #define _DISABLE_TLS_
 #include <Arduino.h>
 
-
 #include "ESP32TimerInterrupt.h"
 #include <SimpleDHT.h>
 #include <U8g2lib.h>
@@ -18,7 +17,7 @@
 #include <PubSubClient.h>
 #include "pass.h"
 #include <WiFi.h>
-
+#include <string>
 
 #define WATER_OK 1
 #define WATER_LOW 0
@@ -39,7 +38,7 @@
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
-#define TIMER_INTERVAL 20000
+#define TIMER_INTERVAL 30000 //miliseconds 
 
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
@@ -54,17 +53,18 @@ const char device_name[] = "esp32telemetry";
 const char data_topic[] = "/sensor/data"; // MQTT topic
 const char alarm_topic[] = "alarm";
 const char status_topic[] = "status";
-const char rpc_response_topic[] = "v1/devices/me/rpc/request/";
-
+const char rpc_request_topic[] = "v1/devices/me/rpc/request/+";
+const char rpc_response_topic[] = "v1/devices/me/rpc/response/";
 
 volatile bool tim_flg = false;
+void callback(char* topic, byte* payload, unsigned int length);
 
 // konstruktory
 SimpleDHT22 dht22(DHT_PIN);
 U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK_PIN, OLED_DATA_PIN, /* reset=*/U8X8_PIN_NONE);
 
 WiFiClient esp32wifi;
-PubSubClient esp_client(esp32wifi);
+PubSubClient mqtt_client(esp32wifi);
 
 ESP32Timer ITImer0(0);
 
@@ -81,10 +81,33 @@ void GetWaterLevel(bool *pstate)
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
+  char buffer[256];
   StaticJsonDocument<256> doc;
   deserializeJson(doc, payload, length);
 
-  uint8_t led = doc["setled"];
+  uint8_t message = doc["chuj"];
+
+  Serial.println(message);
+
+  serializeJson(message, buffer);
+  mqtt_client.publish("v1/devices/me/rpc/response/", buffer);
+
+  //  // Allocate the correct amount of memory for the payload copy
+  // byte* p = (byte*)malloc(length);
+  // // Copy the payload to the new buffer
+  // memcpy(p,payload,length);
+  
+  // String received = (char*)payload;
+
+  // Serial.println(received);
+
+  // // mqtt_client.publish("outTopic", p, length);
+  // // Free the memory
+  // free(p);
+
+
+
+
 }
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
@@ -100,7 +123,7 @@ void setupWIFI(void)
 {
   WiFi.mode(WIFI_STA);
 
-  esp_client.setServer(mqtt_server, mqtt_port);
+  mqtt_client.setServer(mqtt_server, mqtt_port);
 
   oledPrint(0, 10, "connecting");
 
@@ -109,7 +132,7 @@ void setupWIFI(void)
   {
     WiFi.hostname("ESP-host");
     WiFi.begin(ssid, pass);
-    WiFi.setSleep(false);// this code solves my problem
+    WiFi.setSleep(false); // this code solves my problem
     oledPrint(cnt * 5, lineht, ".");
 
     delay(5000);
@@ -129,26 +152,27 @@ void setupMQTT(void)
   const char *client_pass = CLIENT_PASS;
 
   // while (!client.connect("arduinoClient", client_id, client_pass))
-  while (!esp_client.connected())
+  while (!mqtt_client.connected())
   {
-    esp_client.connect(client_id, client_username, client_pass);
+    mqtt_client.connect(client_id, client_username, client_pass);
     Serial.println("connecting to broker: ");
-    Serial.println(esp_client.state());
-    
+    Serial.println(mqtt_client.state());
+
     delay(5000);
-
-    char msg[255];
-
-    StaticJsonDocument<255> doc;
-    doc["serialNumber"] = device_name;
-    serializeJson(doc, msg);
-    esp_client.publish("/sensor/connect", msg);
-
-    esp_client.subscribe("v1/devices/me/rpc/request/+");
   }
+
+  char msg[255];
+
+  StaticJsonDocument<255> doc;
+  doc["serialNumber"] = device_name;
+  serializeJson(doc, msg);
+  mqtt_client.publish("/sensor/connect", msg);
+
+  mqtt_client.subscribe(rpc_request_topic);
+
 }
 
-bool IRAM_ATTR TimerHandler(void * timerNumber)
+bool IRAM_ATTR TimerHandler(void *timerNumber)
 {
   tim_flg = true;
 
@@ -178,100 +202,96 @@ void setup()
   Serial.println("Uruchamianie szklarni");
   Serial.printf("CPU speed: %d MHz\n", getCpuFrequencyMhz());
 
-  
-
   setupWIFI();
   setupMQTT();
-  esp_client.setCallback(callback);
+  mqtt_client.setCallback(callback);
 
   ledcSetup(LED_CHANNEL, 1000, 8);
   ledcAttachPin(LED_PIN, LED_CHANNEL);
 
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
 
-  if(ITImer0.attachInterruptInterval(TIMER_INTERVAL*1000, TimerHandler)){
+  if (ITImer0.attachInterruptInterval(TIMER_INTERVAL * 1000, TimerHandler))
+  {
     Serial.println("Konfiguracja timera poprawna ;33 UwU");
   }
-  else{
+  else
+  {
     Serial.println("ueee timer nie dziala :CCC");
   }
 }
 
 void loop()
 {
-
-  // esp_client.callback
-  if(tim_flg == true){
-  if (MODE == MODE_MANUAL)
+  // mqtt_client.callback
+  if (tim_flg == true)
   {
-    char *buf = new char[255];
-
-    if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
+    if (MODE == MODE_MANUAL)
     {
-      u8g2.setCursor(0, 10);
-      u8g2.print(SimpleDHTErrCode(DHTerror));
-      u8g2.sendBuffer();
+      char *buf = new char[255];
+
+      if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
+      {
+        u8g2.setCursor(0, 10);
+        u8g2.print(SimpleDHTErrCode(DHTerror));
+        u8g2.sendBuffer();
+      }
+
+      u8g2.clear();
+      sprintf(buf, "Temp: %.1f *C", temperature);
+      oledPrint(0, 10, buf);
+      sprintf(buf, "Hum: %d RH", (int)humidity);
+      oledPrint(0, 10 + lineht, buf);
+
+      GetWaterLevel(&water_level);
+      Serial.println(water_level);
+
+      StaticJsonDocument<255> doc;
+      StaticJsonDocument<255> alrm;
+
+      if (temperature > TEMP_HOT_THRESHOLD)
+      {
+        alrm["temp_alrm"] = "HOT";
+      }
+      else if (temperature < TEMP_COLD_THRESHOLD)
+      {
+        alrm["temp_alrm"] = "COLD";
+      }
+
+      else
+      {
+        alrm["temp_alrm"] = "OK";
+      }
+
+      // data for publishing
+      doc["serialNumber"] = device_name;
+      doc["sensorType"] = "Hydroponics";
+      doc["sensorModel"] = "telemetry";
+      doc["temp"] = temperature;
+      doc["hum"] = humidity;
+      doc["led"] = led_pwm;
+      doc["fan"] = fan;
+      doc["waterlvl"] = water_level;
+      doc["pump_pwm"] = pump_pwm;
+
+      char mqtt_msg[255];
+
+      serializeJson(doc, mqtt_msg);
+      mqtt_client.publish(data_topic, mqtt_msg);
+
+      doc.clear();
+
+      setPWM(LED_CHANNEL, led_pwm);
     }
 
-    u8g2.clear();
-    sprintf(buf, "Temp: %.1f *C", temperature);
-    oledPrint(0, 10, buf);
-    sprintf(buf, "Hum: %d RH", (int)humidity);
-    oledPrint(0, 10 + lineht, buf);
-
-    GetWaterLevel(&water_level);
-    Serial.println(water_level);
-
-    StaticJsonDocument<255> doc;
-    StaticJsonDocument<255> alrm;
-
-    if (temperature > TEMP_HOT_THRESHOLD)
+    if (MODE == MODE_AUTO)
     {
-      alrm["temp_alrm"] = "HOT";
-    }
-    else if (temperature < TEMP_COLD_THRESHOLD)
-    {
-      alrm["temp_alrm"] = "COLD";
     }
 
-    else
-    {
-      alrm["temp_alrm"] = "OK";
-    }
+    tim_flg = false;
+  } // koniec zadania uruchamianego poprzez timer
 
-    // data for publishing
-    doc["serialNumber"] = device_name;
-    doc["sensorType"] = "Hydroponics";
-    doc["sensorModel"] = "telemetry";
-    doc["temp"] = temperature;
-    doc["hum"] = humidity;
-    doc["led"] = led_pwm;
-    doc["fan"] = fan;
-    doc["waterlvl"] = water_level;
-    doc["pump_pwm"] = pump_pwm;
-
-    char mqtt_msg[255];
-
-    serializeJson(doc, mqtt_msg);
-    esp_client.publish(data_topic, mqtt_msg);
-
-    doc.clear();
-
-    setPWM(LED_CHANNEL, led_pwm);
-
-    
-
-    
-  }
-
-  if(MODE == MODE_AUTO){
-
-  }
-  tim_flg= false;
-  }
-
-  esp_client.loop();
-  
+  mqtt_client.loop();
 }
 
 // bool CheckStatesDiff(States curr, States prevy)
