@@ -7,8 +7,11 @@
  * https://github.com/mich-j/ESP32_hydroponics
  *
  */
-
+// #define _DISABLE_TLS_
 #include <Arduino.h>
+
+
+#include "ESP32TimerInterrupt.h"
 #include <SimpleDHT.h>
 #include <U8g2lib.h>
 #include <ArduinoJson.h>
@@ -16,7 +19,7 @@
 #include "pass.h"
 #include <WiFi.h>
 
-//#define _TIMERINTERRUPT_LOGLEVEL_ 4
+
 #define WATER_OK 1
 #define WATER_LOW 0
 
@@ -36,6 +39,8 @@
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
+#define TIMER_INTERVAL 20000
+
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
 
@@ -51,8 +56,8 @@ const char alarm_topic[] = "alarm";
 const char status_topic[] = "status";
 const char rpc_response_topic[] = "v1/devices/me/rpc/request/";
 
-hw_timer_t *tim_sens = NULL;
-volatile bool tim_sens_flg = false;
+
+volatile bool tim_flg = false;
 
 // konstruktory
 SimpleDHT22 dht22(DHT_PIN);
@@ -60,6 +65,8 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK_PIN, OLED_DATA_P
 
 WiFiClient esp32wifi;
 PubSubClient esp_client(esp32wifi);
+
+ESP32Timer ITImer0(0);
 
 // Function declarations
 void SetRelay(uint8_t pin, bool state)
@@ -98,10 +105,11 @@ void setupWIFI(void)
   oledPrint(0, 10, "connecting");
 
   uint8_t cnt = 0;
-  while (wifi_status != WL_CONNECTED)
+  while (WiFi.status() != WL_CONNECTED)
   {
-
-    wifi_status = WiFi.begin(ssid, pass);
+    WiFi.hostname("ESP-host");
+    WiFi.begin(ssid, pass);
+    WiFi.setSleep(false);// this code solves my problem
     oledPrint(cnt * 5, lineht, ".");
 
     delay(5000);
@@ -140,9 +148,11 @@ void setupMQTT(void)
   }
 }
 
-void IRAM_ATTR tim_sens_isr(void)
+bool IRAM_ATTR TimerHandler(void * timerNumber)
 {
-  tim_sens_flg = true;
+  tim_flg = true;
+
+  return true;
 }
 
 void setPWM(uint8_t channel, uint8_t dutyCycle)
@@ -163,21 +173,35 @@ void setup()
   u8g2.setFont(u8g2_font_ncenB08_tr);
   u8g2.clear();
   lineht = u8g2.getMaxCharHeight() + 10;
+
   Serial.begin(9600);
   Serial.println("Uruchamianie szklarni");
   Serial.printf("CPU speed: %d MHz\n", getCpuFrequencyMhz());
-  esp_client.setCallback(callback);
+
+  
+
   setupWIFI();
   setupMQTT();
+  esp_client.setCallback(callback);
 
   ledcSetup(LED_CHANNEL, 1000, 8);
   ledcAttachPin(LED_PIN, LED_CHANNEL);
 
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
+
+  if(ITImer0.attachInterruptInterval(TIMER_INTERVAL*1000, TimerHandler)){
+    Serial.println("Konfiguracja timera poprawna ;33 UwU");
+  }
+  else{
+    Serial.println("ueee timer nie dziala :CCC");
+  }
 }
 
 void loop()
 {
+
+  // esp_client.callback
+  if(tim_flg == true){
   if (MODE == MODE_MANUAL)
   {
     char *buf = new char[255];
@@ -235,7 +259,7 @@ void loop()
 
     setPWM(LED_CHANNEL, led_pwm);
 
-    esp_client.loop();
+    
 
     
   }
@@ -243,7 +267,11 @@ void loop()
   if(MODE == MODE_AUTO){
 
   }
-  delay(60000);
+  tim_flg= false;
+  }
+
+  esp_client.loop();
+  
 }
 
 // bool CheckStatesDiff(States curr, States prevy)

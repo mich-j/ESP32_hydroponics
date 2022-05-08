@@ -1,9 +1,6 @@
 {
 	"folders": [
 		{
-			"path": "..\\..\\..\\PlatformIO\\Projects\\esp32_oled"
-		},
-		{
 			"name": "esp32_hydroponics",
 			"path": "."
 		}
