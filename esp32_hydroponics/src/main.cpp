@@ -8,7 +8,7 @@
  * https://github.com/mich-j/ESP32_hydroponics
  *
  */
-// #define _DISABLE_TLS_
+
 #include <Arduino.h>
 
 #include "ESP32TimerInterrupt.h"
