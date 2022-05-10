@@ -3,6 +3,7 @@
  * Broker MQTT: Mosquitto na Raspberry Pi
  * Lokalny serwer Thingsboard na Raspberry Pi  do wyświetlania wykresów i kontrolek
  * ESP32 publikuje wiadomości z telemetrią (pomiary z sensorów oraz stan wyjść) w formacie JSON
+ * Program działa w układzie nieblokującym - pomiary i publikacja wywoływana jest przerwaniem timera, w pozostałym czasie wywoływana jest metoda mqtt_client.loop(), co umożliwia nasłuchiwanie żądań ze strony serwera
  *
  * https://github.com/mich-j/ESP32_hydroponics
  *
@@ -38,7 +39,8 @@
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
-#define TIMER_INTERVAL 30000 //miliseconds 
+// czas pomiędzy kolejnymi przerwaniami timera. Określa, jak często publikowana jest telemetria
+#define TIMER_INTERVAL 30000 // miliseconds
 
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
@@ -57,7 +59,7 @@ const char rpc_request_topic[] = "v1/devices/me/rpc/request/+";
 const char rpc_response_topic[] = "v1/devices/me/rpc/response/";
 
 volatile bool tim_flg = false;
-void callback(char* topic, byte* payload, unsigned int length);
+void callback(char *topic, byte *payload, unsigned int length);
 
 // konstruktory
 SimpleDHT22 dht22(DHT_PIN);
@@ -81,33 +83,48 @@ void GetWaterLevel(bool *pstate)
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
-  char buffer[256];
+  // Funkcja wywoływana w momencie odebrania wiadomości w subskrybowanym temacie
+  // Serwer publikuje tam kolejne tematy, każdy ma inną nazwę - jest to ID żądania RPC
+  // Odpowiedź klienta jest publikowana w temacie o takiej samej nazwie, jak żądanie. Dzięki temu możliwa jest kontrola nad poprawnością odbieranych poleceń
+
   StaticJsonDocument<256> doc;
   deserializeJson(doc, payload, length);
 
-  uint8_t message = doc["chuj"];
+  char * request_id;
+  char *ptr;
+  ptr = strtok(topic, "/");
 
-  Serial.println(message);
+  uint8_t cnt = 0;
 
-  serializeJson(message, buffer);
-  mqtt_client.publish("v1/devices/me/rpc/response/", buffer);
-
-  //  // Allocate the correct amount of memory for the payload copy
-  // byte* p = (byte*)malloc(length);
-  // // Copy the payload to the new buffer
-  // memcpy(p,payload,length);
+  // strtok działa tak, że pierwszy znak określony w argumencie, zastępuje NULL. Zwraca wskaźnik na początek łańcucha znaków, od którego zaczęło się poszukiwanie. Jeśli chcemy szukać dalej, wywołujemy ją z argumentem NULL.
   
-  // String received = (char*)payload;
+  while (ptr != NULL)
+  {
+    ptr = strtok(NULL, "/");
+    cnt++;
 
-  // Serial.println(received);
+    if(cnt >= 5){
+      request_id = ptr;
+      ptr = NULL;
 
-  // // mqtt_client.publish("outTopic", p, length);
-  // // Free the memory
-  // free(p);
+    }
+  }
 
+  Serial.println(request_id);
 
+  doc.clear();
+ 
+  doc["resp"] = "witam";
+  char msg[255];
+  serializeJson(doc, msg);
 
-
+  char buffer[256];
+  // Skopiowanie const char z adresem kanału odpowiedzi do bufora
+  strcpy(buffer, rpc_response_topic);
+  // doklejenie do bufora numeru żądania RPC
+  strcat(buffer, request_id);
+  mqtt_client.publish(buffer, msg);
+  Serial.println(buffer);
 }
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
@@ -163,13 +180,14 @@ void setupMQTT(void)
 
   char msg[255];
 
+  // opublikowanie w odpowiednim temacie informacji o sukcesie połączenia. 
   StaticJsonDocument<255> doc;
   doc["serialNumber"] = device_name;
   serializeJson(doc, msg);
   mqtt_client.publish("/sensor/connect", msg);
 
   mqtt_client.subscribe(rpc_request_topic);
-
+  mqtt_client.setCallback(callback);
 }
 
 bool IRAM_ATTR TimerHandler(void *timerNumber)
@@ -204,13 +222,13 @@ void setup()
 
   setupWIFI();
   setupMQTT();
-  mqtt_client.setCallback(callback);
-
+  
+// setup pinów
   ledcSetup(LED_CHANNEL, 1000, 8);
   ledcAttachPin(LED_PIN, LED_CHANNEL);
-
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
 
+// setup timera
   if (ITImer0.attachInterruptInterval(TIMER_INTERVAL * 1000, TimerHandler))
   {
     Serial.println("Konfiguracja timera poprawna ;33 UwU");
@@ -223,7 +241,6 @@ void setup()
 
 void loop()
 {
-  // mqtt_client.callback
   if (tim_flg == true)
   {
     if (MODE == MODE_MANUAL)
@@ -263,7 +280,7 @@ void loop()
         alrm["temp_alrm"] = "OK";
       }
 
-      // data for publishing
+      // formatowanie dokumentu JSON z telemetrią do publikacji
       doc["serialNumber"] = device_name;
       doc["sensorType"] = "Hydroponics";
       doc["sensorModel"] = "telemetry";
@@ -293,21 +310,3 @@ void loop()
 
   mqtt_client.loop();
 }
-
-// bool CheckStatesDiff(States curr, States prevy)
-// {
-//   int *curr_ptr;
-//   int *prevy_ptr;
-
-//   bool is_diff = false;
-
-//   for (int i = 0; i < 3; i++)
-//   {
-//     if (*(curr_ptr + i) != *(prevy_ptr + i))
-//     {
-//       is_diff = true;
-//     }
-//   }
-
-//   return is_diff;
-// }
