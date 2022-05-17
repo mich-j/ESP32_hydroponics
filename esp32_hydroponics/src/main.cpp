@@ -85,46 +85,53 @@ void callback(char *topic, byte *payload, unsigned int length)
 {
   // Funkcja wywoływana w momencie odebrania wiadomości w subskrybowanym temacie
   // Serwer publikuje tam kolejne tematy, każdy ma inną nazwę - jest to ID żądania RPC
-  // Odpowiedź klienta jest publikowana w temacie o takiej samej nazwie, jak żądanie. Dzięki temu możliwa jest kontrola nad poprawnością odbieranych poleceń
+  // Odpowiedź klienta jest publikowana w temacie o takiej samej nazwie, jak żądanie. Dzięki temu możliwe jest potwierdzanie odczytu wiadomości.
 
   StaticJsonDocument<256> doc;
+
   deserializeJson(doc, payload, length);
 
-  char * request_id;
+  char *request_id;
   char *ptr;
   ptr = strtok(topic, "/");
 
   uint8_t cnt = 0;
 
   // strtok działa tak, że pierwszy znak określony w argumencie, zastępuje NULL. Zwraca wskaźnik na początek łańcucha znaków, od którego zaczęło się poszukiwanie. Jeśli chcemy szukać dalej, wywołujemy ją z argumentem NULL.
-  
   while (ptr != NULL)
   {
     ptr = strtok(NULL, "/");
     cnt++;
 
-    if(cnt >= 5){
+    if (cnt >= 5)
+    {
       request_id = ptr;
       ptr = NULL;
-
     }
   }
-
-  Serial.println(request_id);
-
+  serializeJson(doc, Serial);
+  // Serial.printf("Msg arrived: %s \n", payload);
+  Serial.print("\n");
   doc.clear();
- 
-  doc["resp"] = "witam";
-  char msg[255];
-  serializeJson(doc, msg);
 
-  char buffer[256];
+  const size_t capacity = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2);
+
+  DynamicJsonDocument jsonBuffer(capacity);
+  jsonBuffer["method"] = "rpc_call";
+  JsonObject params = jsonBuffer.createNestedObject("params");
+  params["status"] = "ok";
+
+  char response[256];
+  serializeJson(jsonBuffer, response);
+
+  char response_topic[256];
   // Skopiowanie const char z adresem kanału odpowiedzi do bufora
-  strcpy(buffer, rpc_response_topic);
+  strcpy(response_topic, rpc_response_topic);
   // doklejenie do bufora numeru żądania RPC
-  strcat(buffer, request_id);
-  mqtt_client.publish(buffer, msg);
-  Serial.println(buffer);
+  strcat(response_topic, request_id);
+  mqtt_client.publish(response_topic, response);
+  Serial.printf("Resp topic: %s \n", response_topic);
+  Serial.printf("Resp message: %s \n", response);
 }
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
@@ -133,7 +140,7 @@ void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
   u8g2.print(buffer);
   u8g2.sendBuffer();
 
-  Serial.println(buffer);
+  Serial.println(buffer); // buffer to char z nazwą tematu w którym zostanie opublikowana odpowiedź
 }
 
 void setupWIFI(void)
@@ -149,7 +156,7 @@ void setupWIFI(void)
   {
     WiFi.hostname("ESP-host");
     WiFi.begin(ssid, pass);
-    WiFi.setSleep(false); // this code solves my problem
+    WiFi.setSleep(false);
     oledPrint(cnt * 5, lineht, ".");
 
     delay(5000);
@@ -168,7 +175,6 @@ void setupMQTT(void)
   const char *client_username = CLIENT_USERNAME;
   const char *client_pass = CLIENT_PASS;
 
-  // while (!client.connect("arduinoClient", client_id, client_pass))
   while (!mqtt_client.connected())
   {
     mqtt_client.connect(client_id, client_username, client_pass);
@@ -180,12 +186,11 @@ void setupMQTT(void)
 
   char msg[255];
 
-  // opublikowanie w odpowiednim temacie informacji o sukcesie połączenia. 
+  // opublikowanie w odpowiednim temacie informacji o sukcesie połączenia.
   StaticJsonDocument<255> doc;
   doc["serialNumber"] = device_name;
   serializeJson(doc, msg);
   mqtt_client.publish("/sensor/connect", msg);
-
   mqtt_client.subscribe(rpc_request_topic);
   mqtt_client.setCallback(callback);
 }
@@ -222,13 +227,13 @@ void setup()
 
   setupWIFI();
   setupMQTT();
-  
-// setup pinów
+
+  // setup pinów
   ledcSetup(LED_CHANNEL, 1000, 8);
   ledcAttachPin(LED_PIN, LED_CHANNEL);
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
 
-// setup timera
+  // setup timera
   if (ITImer0.attachInterruptInterval(TIMER_INTERVAL * 1000, TimerHandler))
   {
     Serial.println("Konfiguracja timera poprawna ;33 UwU");
@@ -243,6 +248,12 @@ void loop()
 {
   if (tim_flg == true)
   {
+    if (WiFi.status() != WL_CONNECTED || mqtt_client.connected() != true)
+    {
+      // jeśli brak połączenia z WiFi, lub utracono połączenie z brokerem, próbuj ponownie
+      setupWIFI();
+      setupMQTT();
+    }
     if (MODE == MODE_MANUAL)
     {
       char *buf = new char[255];
