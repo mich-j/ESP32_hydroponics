@@ -28,7 +28,7 @@
 #define OLED_DATA_PIN 21
 #define WATER_PUMP_PIN 34
 #define WATER_SENSOR_PIN 23
-#define LED_PIN 23
+#define LED_PIN 21
 #define LED_CHANNEL 0
 #define FAN_PIN 35
 #define AIR_PIN 36
@@ -109,8 +109,12 @@ void callback(char *topic, byte *payload, unsigned int length)
       ptr = NULL;
     }
   }
-  serializeJson(doc, Serial);
-  // Serial.printf("Msg arrived: %s \n", payload);
+
+  // char *message;
+
+  // serializeJson(doc, message);
+  // Serial.printf("message: %s \n", message);
+  Serial.printf("Msg arrived: %s \n", payload);
   Serial.print("\n");
   doc.clear();
 
@@ -119,6 +123,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   DynamicJsonDocument jsonBuffer(capacity);
   jsonBuffer["method"] = "rpc_call";
   JsonObject params = jsonBuffer.createNestedObject("params");
+  // odpowiedź
   params["status"] = "ok";
 
   char response[256];
@@ -132,7 +137,11 @@ void callback(char *topic, byte *payload, unsigned int length)
   mqtt_client.publish(response_topic, response);
   Serial.printf("Resp topic: %s \n", response_topic);
   Serial.printf("Resp message: %s \n", response);
+
+
 }
+
+
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
 {
@@ -210,7 +219,7 @@ void setPWM(uint8_t channel, uint8_t dutyCycle)
 float_t temperature = 0;
 float_t humidity = 0;
 bool water_level = 0;
-uint8_t pump_pwm = 0;
+bool pump = 0;
 uint8_t led_pwm = 0;
 bool fan = 0;
 
@@ -232,6 +241,8 @@ void setup()
   ledcSetup(LED_CHANNEL, 1000, 8);
   ledcAttachPin(LED_PIN, LED_CHANNEL);
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(FAN_PIN, OUTPUT);
+  pinMode(WATER_PUMP_PIN, OUTPUT);
 
   // setup timera
   if (ITImer0.attachInterruptInterval(TIMER_INTERVAL * 1000, TimerHandler))
@@ -271,9 +282,6 @@ void loop()
       sprintf(buf, "Hum: %d RH", (int)humidity);
       oledPrint(0, 10 + lineht, buf);
 
-      GetWaterLevel(&water_level);
-      Serial.println(water_level);
-
       StaticJsonDocument<255> doc;
       StaticJsonDocument<255> alrm;
 
@@ -300,7 +308,7 @@ void loop()
       doc["led"] = led_pwm;
       doc["fan"] = fan;
       doc["waterlvl"] = water_level;
-      doc["pump_pwm"] = pump_pwm;
+      doc["pump_pwm"] = pump;
 
       char mqtt_msg[255];
 
@@ -310,6 +318,13 @@ void loop()
       doc.clear();
 
       setPWM(LED_CHANNEL, led_pwm);
+
+      GetWaterLevel(&water_level);
+      Serial.printf("Poziom wody : %d \n", water_level);
+      pump = !pump;
+      fan = !fan;
+      SetRelay(WATER_PUMP_PIN, pump);
+      SetRelay(FAN_PIN, fan);
     }
 
     if (MODE == MODE_AUTO)
