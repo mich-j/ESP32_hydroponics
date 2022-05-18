@@ -23,24 +23,25 @@
 #define WATER_OK 1
 #define WATER_LOW 0
 
-// Pins
+/// Ustawienia
 #define OLED_CLOCK_PIN 22
 #define OLED_DATA_PIN 21
-#define WATER_PUMP_PIN 34
+#define WATER_PUMP_PIN 2
 #define WATER_SENSOR_PIN 23
 #define LED_PIN 21
 #define LED_CHANNEL 0
-#define FAN_PIN 35
+#define FAN_PIN 15
 #define AIR_PIN 36
 #define DHT_PIN 18
-#define MODE_AUTO 0
-#define MODE_MANUAL 1
 
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
-// czas pomiędzy kolejnymi przerwaniami timera. Określa, jak często publikowana jest telemetria
-#define TIMER_INTERVAL 30000 // miliseconds
+#define TIMER_INTERVAL 60000 // miliseconds // czas pomiędzy kolejnymi przerwaniami timera. Określa, jak często publikowana jest telemetria
+
+// Defines
+#define MODE_AUTO 0
+#define MODE_MANUAL 1
 
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
@@ -87,17 +88,13 @@ void callback(char *topic, byte *payload, unsigned int length)
   // Serwer publikuje tam kolejne tematy, każdy ma inną nazwę - jest to ID żądania RPC
   // Odpowiedź klienta jest publikowana w temacie o takiej samej nazwie, jak żądanie. Dzięki temu możliwe jest potwierdzanie odczytu wiadomości.
 
-  StaticJsonDocument<256> doc;
-
-  deserializeJson(doc, payload, length);
-
+  /* Odczytanie nazwy tematu, który stanowi jego unikalny numer. Działa pod warunkiem, że ilość podtematów, począwszy od v1, jest stała xD */
+  // strtok działa tak, że pierwszy znak określony w argumencie, zastępuje NULL. Zwraca wskaźnik na początek łańcucha znaków, od którego zaczęło się poszukiwanie. Jeśli chcemy szukać dalej, wywołujemy ją z argumentem NULL.
   char *request_id;
   char *ptr;
   ptr = strtok(topic, "/");
 
   uint8_t cnt = 0;
-
-  // strtok działa tak, że pierwszy znak określony w argumencie, zastępuje NULL. Zwraca wskaźnik na początek łańcucha znaków, od którego zaczęło się poszukiwanie. Jeśli chcemy szukać dalej, wywołujemy ją z argumentem NULL.
   while (ptr != NULL)
   {
     ptr = strtok(NULL, "/");
@@ -110,14 +107,20 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
   }
 
-  // char *message;
 
-  // serializeJson(doc, message);
-  // Serial.printf("message: %s \n", message);
-  Serial.printf("Msg arrived: %s \n", payload);
-  Serial.print("\n");
+
+  /* odczytanie treści wiadomości */
+  StaticJsonDocument<256> doc;
+deserializeJson(doc, payload);
+  uint8_t state_from_rpc = doc["method"];
+ 
+  Serial.printf("\nMsg arrived: %s, %d \n", payload, state_from_rpc);
+  
+
+
   doc.clear();
 
+  /* Sekcja obsługująca odpowiedź */
   const size_t capacity = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2);
 
   DynamicJsonDocument jsonBuffer(capacity);
@@ -125,6 +128,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   JsonObject params = jsonBuffer.createNestedObject("params");
   // odpowiedź
   params["status"] = "ok";
+  // Odpowiedź wygląda tak: {"method": "rpc_call", "params": {"status": "ok"}}
 
   char response[256];
   serializeJson(jsonBuffer, response);
@@ -136,12 +140,8 @@ void callback(char *topic, byte *payload, unsigned int length)
   strcat(response_topic, request_id);
   mqtt_client.publish(response_topic, response);
   Serial.printf("Resp topic: %s \n", response_topic);
-  Serial.printf("Resp message: %s \n", response);
-
-
+  Serial.printf("Resp message: %s \n\n", response);
 }
-
-
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
 {
@@ -321,10 +321,9 @@ void loop()
 
       GetWaterLevel(&water_level);
       Serial.printf("Poziom wody : %d \n", water_level);
-      pump = !pump;
-      fan = !fan;
-      SetRelay(WATER_PUMP_PIN, pump);
-      SetRelay(FAN_PIN, fan);
+
+      // SetRelay(WATER_PUMP_PIN, pump);
+      // SetRelay(FAN_PIN, fan);
     }
 
     if (MODE == MODE_AUTO)
