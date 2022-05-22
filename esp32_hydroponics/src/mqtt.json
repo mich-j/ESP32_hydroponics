@@ -1,0 +1,118 @@
+{
+    "broker": {
+        "name": "RPi Local Broker",
+        "host": "192.168.1.81",
+        "port": 1884,
+        "clientId": "gateway",
+        "maxMessageNumberPerWorker": 10,
+        "maxNumberOfWorkers": 100,
+        "security": {
+            "type": "basic",
+            "username": "rpi",
+            "password": "hydroponika"
+        }
+    },
+    "mapping": [
+        {
+            "topicFilter": "/sensor/data",
+            "converter": {
+                "type": "json",
+                "deviceNameJsonExpression": "${serialNumber}",
+                "deviceTypeJsonExpression": "${sensorType}",
+                "timeout": 60000,
+                "attributes": [
+                    {
+                        "type": "string",
+                        "key": "model",
+                        "value": "${sensorModel}"
+                    },
+                    {
+                        "type": "string",
+                        "key": "${sensorModel}",
+                        "value": "on"
+                    },
+                    {
+                        "type": "int",
+                        "key": "led_pwm",
+                        "value": "${led_pwm}"
+                    },
+                    {
+                        "type": "int",
+                        "key": "water_pump_state",
+                        "value": "${water_pump_state}"
+                    },
+                    {
+                        "type": "bool",
+                        "key": "fan_state",
+                        "value": "${fan_state}"
+                    }
+                ],
+                "timeseries": [
+                    {
+                        "type": "double",
+                        "key": "temperature",
+                        "value": "${temp}"
+                    },
+                    {
+                        "type": "double",
+                        "key": "humidity",
+                        "value": "${hum}"
+                    },
+                    {
+                        "type": "bool",
+                        "key": "waterlvl_state",
+                        "value": "${waterlvl}"
+                    }
+                ]
+            }
+        }
+    ],
+    "connectRequests": [
+        {
+            "topicFilter": "/sensor/connect",
+            "deviceNameJsonExpression": "${serialNumber}"
+        }
+    ],
+    "serverSideRpc": [
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "rpc_call",
+            "requestTopicExpression": "v1/devices/me/rpc/request/${requestId}",
+            "responseTopicExpression": "v1/devices/me/rpc/response/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        },
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "getValue",
+            "requestTopicExpression": "v1/devices/me/rpc/request/${methodName}/${requestId}",
+            "responseTopicExpression": "v1/devices/me/rpc/response/${methodName}/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        },
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "setValue",
+            "requestTopicExpression": "v1/devices/me/rpc/request/${methodName}/${requestId}",
+            "responseTopicExpression": "v1/devices/me/rpc/response/${methodName}/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        },
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "getValueLED",
+            "requestTopicExpression": "v1/devices/me/rpc/request/${methodName}/${requestId}",
+            "responseTopicExpression": "v1/devices/me/rpc/response/${methodName}/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        },
+        {
+            "deviceNameFilter": ".*",
+            "methodFilter": "setValueLED",
+            "requestTopicExpression": "v1/devices/me/rpc/request/${methodName}/${requestId}",
+            "responseTopicExpression": "v1/devices/me/rpc/response/${methodName}/${requestId}",
+            "responseTimeout": 10000,
+            "valueExpression": "${params}"
+        }
+    ]
+}

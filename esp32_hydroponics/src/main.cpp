@@ -1,12 +1,15 @@
-/** v1
+/* v2
  * Obecnie działa:
- * Broker MQTT: Mosquitto na Raspberry Pi
- * Lokalny serwer Thingsboard na Raspberry Pi  do wyświetlania wykresów i kontrolek
- * ESP32 publikuje wiadomości z telemetrią (pomiary z sensorów oraz stan wyjść) w formacie JSON
- * Program działa w układzie nieblokującym - pomiary i publikacja wywoływana jest przerwaniem timera, w pozostałym czasie wywoływana jest metoda mqtt_client.loop(), co umożliwia nasłuchiwanie żądań ze strony serwera
- *
- * https://github.com/mich-j/ESP32_hydroponics
- *
+ * > Broker MQTT: Mosquitto na Raspberry Pi
+ * > okalny serwer Thingsboard na Raspberry Pi  do wyświetlania wykresów i kontrolek
+ * > ESP32 publikuje wiadomości z telemetrią (pomiary z sensorów oraz stan wyjść) w formacie JSON
+ * > Program działa w układzie nieblokującym - pomiary i publikacja wywoływana jest przerwaniem timera, w pozostałym czasie wywoływana jest metoda mqtt_client.loop(), co umożliwia nasłuchiwanie żądań ze strony serwera
+ * > Możliwe jest wysyłanie żądań RPC (Remote Procedure Call) ze strony serwera, są następnie interpretowane przez klienta (ESP32). W ten sposób możliwe jest zdalne sterowanie pracą systemu
+ * > Nie jest wymagana odpowiedź na RPC, ale możliwe jest weryfikowanie poprawności komunikacji przez kontrolki znajdujące się na panelu sterowania. Suwaki on/off służą do wysłania RPC, a stan kontrolek odczytywany jest z telemetrii przesłanej przez klienta.
+ * 
+ * Repozytorium: https://github.com/mich-j/ESP32_hydroponics
+ * 
+ * Jan Michalski, 2022
  */
 
 #include <Arduino.h>
@@ -56,8 +59,14 @@ const char device_name[] = "esp32telemetry";
 const char data_topic[] = "/sensor/data"; // MQTT topic
 const char alarm_topic[] = "alarm";
 const char status_topic[] = "status";
-const char rpc_request_topic[] = "v1/devices/me/rpc/request/setValue/+";
+const char rpc_request_topic[] = "v1/devices/me/rpc/request/";
 const char rpc_response_topic[] = "v1/devices/me/rpc/response/";
+
+static const char * const request_methods[] = {"setValue", "setValueLED"}; // metody używane jako żądania RPC - jednocześnie nazwy tematów
+
+// const char * request_method1 = "setValue";
+// const char * request_method2 = "setValueLED";
+
 
 volatile bool tim_flg = false;
 void callback(char *topic, byte *payload, unsigned int length);
@@ -102,7 +111,7 @@ void setPWM(uint8_t channel, uint8_t dutyCycle)
   ledcWrite(channel, dutyCycle);
 }
 
-void GetWaterLevel(bool *pstate)
+void GetWaterLevel(uint8_t *pstate)
 {
   *pstate = digitalRead(WATER_SENSOR_PIN);
 }
@@ -179,35 +188,6 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
 
   updateAttributes();
-
-  // /* Sekcja obsługująca odpowiedź */
-  // const size_t capacity = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + 100;
-
-  // DynamicJsonDocument jsonBuffer(capacity);
-  // // jsonBuffer["method"] = "rpc_call";
-  // // JsonObject params = jsonBuffer.createNestedObject("params");
-  // // odpowiedź
-  // // params["status"] = "ok";
-  // // Odpowiedź wygląda tak: {"method": "rpc_call", "params": {"status": "ok"}}
-
-  // // jsonBuffer["method"] = methodName;
-  // // JsonObject params = jsonBuffer.createNestedObject("params");
-  // // params["enabled"] = 1;
-  // jsonBuffer["enabled"] = 1;
-
-  // char response[256];
-  // serializeJson(jsonBuffer, response);
-
-  // char response_topic[256];
-  // // Skopiowanie const char z adresem kanału odpowiedzi do bufora
-  // strcpy(response_topic, rpc_response_topic);
-  // // doklejenie do bufora numeru żądania RPC
-  // strcat(response_topic, methodName);
-  // strcat(response_topic, "/");
-  // strcat(response_topic, request_id);
-  // mqtt_client.publish(response_topic, response);
-  // Serial.printf("Resp topic: %s \n", response_topic);
-  // Serial.printf("Resp message: %s \n\n", response);
 }
 
 void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
@@ -222,9 +202,7 @@ void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
 void setupWIFI(void)
 {
   WiFi.mode(WIFI_STA);
-
   mqtt_client.setServer(mqtt_server, mqtt_port);
-
   oledPrint(0, 10, "connecting");
 
   uint8_t cnt = 0;
@@ -251,6 +229,9 @@ void setupMQTT(void)
   const char *client_username = CLIENT_USERNAME;
   const char *client_pass = CLIENT_PASS;
 
+  char msg[255];
+  StaticJsonDocument<255> doc;
+
   while (!mqtt_client.connected())
   {
     mqtt_client.connect(client_id, client_username, client_pass);
@@ -260,13 +241,23 @@ void setupMQTT(void)
     delay(5000);
   }
 
-  char msg[255];
-
   // opublikowanie w odpowiednim temacie informacji o sukcesie połączenia.
-  StaticJsonDocument<255> doc;
+  
   doc["serialNumber"] = device_name;
   serializeJson(doc, msg);
   mqtt_client.publish("/sensor/connect", msg);
+
+  
+
+  int methods_qty = sizeof(request_methods) / sizeof(request_methods[0]);
+  for (uint8_t i = 0; i < methods_qty; i++)
+  {
+    char * topic;
+    strcpy(topic, rpc_request_topic);
+    strcat(topic, request_methods[i]);
+    strcat(topic, "/+");
+  }
+  
   mqtt_client.subscribe(rpc_request_topic);
   mqtt_client.subscribe("v1/devices/me/rpc/request/setValueLED/+");
   mqtt_client.setCallback(callback);
