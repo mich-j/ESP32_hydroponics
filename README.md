@@ -41,7 +41,7 @@ Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output
 
 ### Built prototype
 
-stay tuned
+stay tuned 🌶️
 
 ## To-do
 - [x] Setting up MQTT broker on RPi 
@@ -49,3 +49,4 @@ stay tuned
 - [x] Sending telemetry to Thingsboard server
 - [x] RPC implementation - controlling GPIO and PWM from dashboard
 - [ ] Building and running actual prototype
+- [ ] Finish implementing OLED
