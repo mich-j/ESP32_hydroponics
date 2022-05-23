@@ -2,7 +2,7 @@
 
 System designed for easy crop cultivation at home, especially herbs and fast-growing small plants like lettuce. Three channels, with continous flow of a nutrient solution, are available, allowing for up to 12 seedlings to be grown at the same time.
 
-![schematic](/images/system_schematic.png)
+![schematic](/images/system_schematic_en.png)
 
 ESP32 Devkit module was used to process data from sensors and publish messages with telemetry via MQTT.
 
@@ -41,4 +41,4 @@ Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output
 
 ### Built prototype
 
-zdjęcia prototypu
+stay tuned
