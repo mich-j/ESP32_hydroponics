@@ -35,7 +35,7 @@
 #define LED_CHANNEL 0
 #define FAN_PIN 15
 #define AIR_PIN 36
-#define DHT_PIN 18
+#define DHT_PIN 35
 
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
