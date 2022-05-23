@@ -18,14 +18,14 @@ Code was written using Arduino Framework for ESP32.
 - Fan for controlling humidity and supplying oxygen
 - OLED screen for easy operation control
 
-![administrator's dashboard](/images/dashboard_home.png)
+![administrator's dashboard](/images/dashboard_home_v2.png)
 _Dashboard for system's administrator_
   
  ### Communication 
 
-Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output in a database and display a dashboard with charts and gauges, accessible within local network. Raspberry also works as a MQTT broker and a gateway for communication with Thingsboard.
+Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output in a database and display a dashboard with charts and gauges, accessible within local network. User can turn on/off water pump and fan. Moreover, LED intensity can be controlled with a dimmer. Raspberry also works as a MQTT broker and a gateway for communication with Thingsboard.
 
- schemat komunikacji do wrzucenia
+ ![communication schema](/images/communication_flowchart_en.png)
   
  
 ### Used software:
@@ -42,3 +42,10 @@ Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output
 ### Built prototype
 
 stay tuned
+
+## To-do
+- [x] Setting up MQTT broker on RPi 
+- [x] Setting up Thingsboard server and Gateway on RPi 
+- [x] Sending telemetry to Thingsboard server
+- [x] RPC implementation - controlling GPIO and PWM from dashboard
+- [ ] Building and running actual prototype
