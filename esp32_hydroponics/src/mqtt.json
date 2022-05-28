@@ -1,7 +1,7 @@
 {
     "broker": {
         "name": "RPi Local Broker",
-        "host": "192.168.1.81",
+        "host": "192.168.1.77",
         "port": 1884,
         "clientId": "gateway",
         "maxMessageNumberPerWorker": 10,

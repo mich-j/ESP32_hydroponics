@@ -30,26 +30,19 @@
 #define OLED_CLOCK_PIN 22
 #define OLED_DATA_PIN 21
 #define WATER_PUMP_PIN 2
-#define WATER_SENSOR_PIN 23
-#define LED_PIN 21
+#define WATER_SENSOR_PIN 5
+#define LED_PIN 17 // GPIO17 is TX2 pin
 #define LED_CHANNEL 0
-#define FAN_PIN 15
-#define AIR_PIN 36
-#define DHT_PIN 35
+#define FAN_PIN 4
+#define DHT_PIN 15
 
 #define TEMP_HOT_THRESHOLD 25.0
 #define TEMP_COLD_THRESHOLD 20.0
 
 #define TIMER_INTERVAL 120000 // miliseconds // czas pomiędzy kolejnymi przerwaniami timera. Określa, jak często publikowana jest telemetria
 
-// Defines
-#define MODE_AUTO 0
-#define MODE_MANUAL 1
-
 uint8_t wifi_status = WL_IDLE_STATUS;
 uint8_t lineht;
-
-uint8_t MODE = MODE_MANUAL;
 
 const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWORD;
@@ -63,7 +56,7 @@ const char rpc_request_topic[] = "v1/devices/me/rpc/request/";
 const char rpc_response_topic[] = "v1/devices/me/rpc/response/";
 
 static const char * const request_methods[] = {"setValue", "setValueLED"}; // metody używane jako żądania RPC - jednocześnie nazwy tematów
-
+const uint8_t request_methods_qty = 2;
 // const char * request_method1 = "setValue";
 // const char * request_method2 = "setValueLED";
 
@@ -132,6 +125,7 @@ void updateAttributes()
 
   serializeJson(doc, mqtt_msg);
   mqtt_client.publish(data_topic, mqtt_msg);
+  Serial.println("Publishing attributes");
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
@@ -165,26 +159,29 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
   }
 
-  /* odczytanie treści wiadomości */
+  /* odczytanie i obsługa treści wiadomości */
 
   if (strcmp(methodName, "setValueLED") == 0)
   {
     payload[length] = '\0'; // przekształcenie w ciąg znaków poprzez doklejenie NULL z prawej strony
-    uint8_t led_pwm = atoi((char *)payload);
+    led_pwm = atoi((char *)payload);
     Serial.printf("LED PWM: %d \n", led_pwm);
     setPWM(LED_CHANNEL, led_pwm);
   }
-  else
+  else if (strcmp(methodName, "setValue") == 0)
   {
     StaticJsonDocument<1000> doc;
     deserializeJson(doc, payload);
     char const *component = doc["component"];
     uint8_t state = doc["enabled"];
     Serial.printf("Set %s in state %d \n", component, state);
-    SetRelay(component, state);
+    SetRelay(component, !state); //reversed logic
     serializeJsonPretty(doc, Serial);
     Serial.print("\n");
     doc.clear();
+  }
+  else{
+    Serial.println("Nieznane zadanie RPC");
   }
 
   updateAttributes();
@@ -217,7 +214,7 @@ void setupWIFI(void)
     cnt++;
   }
   u8g2.clear();
-  Serial.print("Polaczono z siecia: ");
+  Serial.print("Polaczono z siecia ");
   Serial.println(WiFi.SSID());
   Serial.print("Adres IP: ");
   Serial.println(WiFi.localIP());
@@ -246,20 +243,17 @@ void setupMQTT(void)
   doc["serialNumber"] = device_name;
   serializeJson(doc, msg);
   mqtt_client.publish("/sensor/connect", msg);
-
-  
-
-  int methods_qty = sizeof(request_methods) / sizeof(request_methods[0]);
-  for (uint8_t i = 0; i < methods_qty; i++)
+ 
+  for (uint8_t i = 0; i < request_methods_qty; i++)
   {
-    char * topic;
+    char topic[40];
     strcpy(topic, rpc_request_topic);
     strcat(topic, request_methods[i]);
     strcat(topic, "/+");
+    mqtt_client.subscribe(topic);
   }
   
-  mqtt_client.subscribe(rpc_request_topic);
-  mqtt_client.subscribe("v1/devices/me/rpc/request/setValueLED/+");
+  // mqtt_client.subscribe("v1/devices/me/rpc/request/setValueLED/+");
   mqtt_client.setCallback(callback);
 }
 
@@ -312,8 +306,8 @@ void loop()
       setupWIFI();
       setupMQTT();
     }
-    if (MODE == MODE_MANUAL)
-    {
+
+    if (true){
       char *buf = new char[255];
 
       if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
@@ -355,10 +349,7 @@ void loop()
       Serial.printf("Poziom wody : %d \n", water_level);
     }
 
-    if (MODE == MODE_AUTO)
-    {
-    }
-
+  
     tim_flg = false;
   } // koniec zadania uruchamianego poprzez timer
 
