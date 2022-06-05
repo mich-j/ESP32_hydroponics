@@ -6,7 +6,7 @@ System designed for easy crop cultivation at home, especially herbs and fast-gro
 
 ESP32 Devkit module was used to process data from sensors and publish messages with telemetry via MQTT.
 
-Code was written using Arduino Framework for ESP32.
+Code was written using Arduino Framework for ESP32, in Visual Studio Code with Platformio extension.
 
 ### Features
 - Air temperature and humidity measurement
