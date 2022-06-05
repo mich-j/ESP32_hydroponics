@@ -7,6 +7,8 @@
  * > Możliwe jest wysyłanie żądań RPC (Remote Procedure Call) ze strony serwera, są następnie interpretowane przez klienta (ESP32). W ten sposób możliwe jest zdalne sterowanie pracą systemu
  * > Nie jest wymagana odpowiedź na RPC, ale możliwe jest weryfikowanie poprawności komunikacji przez kontrolki znajdujące się na panelu sterowania. Suwaki on/off służą do wysłania RPC, a stan kontrolek odczytywany jest z telemetrii przesłanej przez klienta.
  * 
+ * Uwaga - przekaźniki są rodzaju LOW level trigger - stan niski załącza przekaźnik. Stąd, negacja w funkcji SetRelay()
+ * Uwaga2 - pin DATA w DHT22 nie może być podłączony do GPIO oznaczonych jako Input Only xd
  * Repozytorium: https://github.com/mich-j/ESP32_hydroponics
  * 
  * Jan Michalski, 2022
@@ -88,7 +90,8 @@ void SetRelay(const char *comp, uint8_t state)
   if (strcmp(comp, "fan") == 0)
   {
     pin = FAN_PIN;
-    fan_state = state;
+    fan_state = !state;
+    state = !state;
   }
   if (strcmp(comp, "water_pump") == 0)
   {
@@ -175,7 +178,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     char const *component = doc["component"];
     uint8_t state = doc["enabled"];
     Serial.printf("Set %s in state %d \n", component, state);
-    SetRelay(component, !state); //reversed logic
+    SetRelay(component, state);
     serializeJsonPretty(doc, Serial);
     Serial.print("\n");
     doc.clear();
