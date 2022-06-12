@@ -150,14 +150,14 @@ void callback(char *topic, byte *payload, unsigned int length)
     ptr = strtok(NULL, "/");
     cnt++;
 
-    if (cnt == 5)
+    if (cnt == 5) // w piątym+1 segmencie oddzielonym znakiem / znajduje się nazwa metody (wycięta z nazwy tematu)
     {
       methodName = ptr;
     }
 
     if (cnt >= 6)
     {
-      request_id = ptr;
+      request_id = ptr; // analogicznie, kolejny segment zawiera identyfikator żądania
       ptr = NULL;
     }
   }
