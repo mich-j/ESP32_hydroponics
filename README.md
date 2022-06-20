@@ -18,7 +18,7 @@ Code was written using Arduino Framework for ESP32, in Visual Studio Code with P
 - Fan for controlling humidity and supplying oxygen
 - OLED screen for easy operation control
 
-![administrator's dashboard](/images/dashboard_home_v2.png)
+![administrator's dashboard](/images/30_days.png)
 _Dashboard for system's administrator_
   
  ### Communication 
@@ -41,7 +41,10 @@ Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output
 
 ### Built prototype
 
-stay tuned 🌶️
+<img src="images/prototype_tests.jpg" alt="Prototype tests" width="400"/>
+
+## More
+![Documentation (in Polish)](Documentation_PL.pdf)
 
 ## To-do
 - [x] Setting up MQTT broker on RPi 
