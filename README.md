@@ -41,7 +41,7 @@ Raspberry Pi 3B+ hosts Thingsboard server, which allows to store sensors' output
 
 ### Built prototype
 
-[Prototype tests](/images/prototype_tests.jpg)
+<img src="images/prototype_tests.jpg" alt="Prototype tests" width="400"/>
 
 ## More
 ![Documentation (in Polish)](Documentation_PL.pdf)
