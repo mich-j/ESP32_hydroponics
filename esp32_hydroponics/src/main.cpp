@@ -31,11 +31,11 @@
 /// Ustawienia
 #define OLED_CLOCK_PIN 22
 #define OLED_DATA_PIN 21
-#define WATER_PUMP_PIN 2
+#define WATER_PUMP_PIN 4
 #define WATER_SENSOR_PIN 5
 #define LED_PIN 17 // GPIO17 is TX2 pin
 #define LED_CHANNEL 0
-#define FAN_PIN 4
+#define FAN_PIN 2
 #define DHT_PIN 32
 
 #define TEMP_HOT_THRESHOLD 25.0
@@ -90,13 +90,14 @@ void SetRelay(const char *comp, uint8_t state)
   if (strcmp(comp, "fan") == 0)
   {
     pin = FAN_PIN;
-    fan_state = !state;
-    state = !state;
+    fan_state = state;
+    state = state;
   }
   if (strcmp(comp, "water_pump") == 0)
   {
     pin = WATER_PUMP_PIN;
     water_pump = state;
+    state = state;
   }
 
   digitalWrite(pin, state);
@@ -201,6 +202,7 @@ void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
 
 void setupWIFI(void)
 {
+
   WiFi.mode(WIFI_STA);
   mqtt_client.setServer(mqtt_server, mqtt_port);
   oledPrint(0, 10, "connecting");
@@ -287,6 +289,8 @@ void setup()
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
   pinMode(FAN_PIN, OUTPUT);
   pinMode(WATER_PUMP_PIN, OUTPUT);
+
+  delay(5000);
 
   // setup timera
   if (ITImer0.attachInterruptInterval(TIMER_INTERVAL * 1000, TimerHandler))
