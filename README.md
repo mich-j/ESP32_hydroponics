@@ -13,7 +13,7 @@ Code was written using Arduino Framework for ESP32, in Visual Studio Code with P
 - Built as a Nutrient Film Technique (NFT) system
 - Remote control via MQTT protocol
 - Dashboard with gauges and charts
-- PWM Pump flow control
+- PWM LED control
 - Low water level alert
 - Fan for controlling humidity and supplying oxygen
 - OLED screen for easy operation control
@@ -58,5 +58,6 @@ _Controller based on ESP32_
 - [x] Setting up Thingsboard server and Gateway on RPi 
 - [x] Sending telemetry to Thingsboard server
 - [x] RPC implementation - controlling GPIO and PWM from dashboard
-- [ ] Building and running actual prototype
+- [x] Building and running actual prototype
 - [ ] Finish implementing OLED
+- [ ] Impro
