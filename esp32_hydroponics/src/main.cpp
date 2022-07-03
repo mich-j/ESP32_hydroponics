@@ -91,16 +91,16 @@ void SetRelay(const char *comp, uint8_t state)
   {
     pin = FAN_PIN;
     fan_state = state;
-    state = state;
+   
   }
   if (strcmp(comp, "water_pump") == 0)
   {
     pin = WATER_PUMP_PIN;
     water_pump = state;
-    state = state;
+  
   }
 
-  digitalWrite(pin, state);
+  digitalWrite(pin, !state);
 }
 
 void setPWM(uint8_t channel, uint8_t dutyCycle)
@@ -289,6 +289,8 @@ void setup()
   pinMode(WATER_SENSOR_PIN, INPUT_PULLUP);
   pinMode(FAN_PIN, OUTPUT);
   pinMode(WATER_PUMP_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, HIGH);
+  digitalWrite(WATER_PUMP_PIN, HIGH);
 
   delay(5000);
 
