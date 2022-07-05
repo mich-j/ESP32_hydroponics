@@ -18,19 +18,18 @@
 
 #include "ESP32TimerInterrupt.h"
 #include <SimpleDHT.h>
-#include <U8g2lib.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include "pass.h"
 #include <WiFi.h>
 #include <string>
+#include <iterator>
+#include <sensors.h>
 
 #define WATER_OK 1
 #define WATER_LOW 0
 
 /// Ustawienia
-#define OLED_CLOCK_PIN 22
-#define OLED_DATA_PIN 21
 #define WATER_PUMP_PIN 4
 #define WATER_SENSOR_PIN 5
 #define LED_PIN 17 // GPIO17 is TX2 pin
@@ -73,9 +72,11 @@ uint8_t water_pump = 0;
 uint8_t led_pwm = 0;
 uint8_t fan_state = 0;
 
+
+
+
 // konstruktory
 SimpleDHT22 dht22(DHT_PIN);
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, OLED_CLOCK_PIN, OLED_DATA_PIN, /* reset=*/U8X8_PIN_NONE);
 
 WiFiClient esp32wifi;
 PubSubClient mqtt_client(esp32wifi);
@@ -191,41 +192,31 @@ void callback(char *topic, byte *payload, unsigned int length)
   updateAttributes();
 }
 
-void oledPrint(uint8_t cur_x, uint8_t cur_y, char *buffer)
-{
-  u8g2.setCursor(cur_x, cur_y);
-  u8g2.print(buffer);
-  u8g2.sendBuffer();
 
-  Serial.println(buffer); // buffer to char z nazwą tematu w którym zostanie opublikowana odpowiedź
-}
-
-void setupWIFI(void)
+void setupWIFI(WiFiClass wifi)
 {
 
-  WiFi.mode(WIFI_STA);
-  mqtt_client.setServer(mqtt_server, mqtt_port);
-  oledPrint(0, 10, "connecting");
+  wifi.mode(WIFI_STA);
+ 
 
   uint8_t cnt = 0;
-  while (WiFi.status() != WL_CONNECTED)
+  while (wifi.status() != WL_CONNECTED)
   {
-    WiFi.hostname("ESP-host");
-    WiFi.begin(ssid, pass);
-    WiFi.setSleep(false);
-    oledPrint(cnt * 5, lineht, ".");
+    wifi.hostname("ESP-host");
+    wifi.begin(ssid, pass);
+    wifi.setSleep(false);
 
     delay(5000);
     cnt++;
   }
-  u8g2.clear();
+
   Serial.print("Polaczono z siecia ");
-  Serial.println(WiFi.SSID());
+  Serial.println(wifi.SSID());
   Serial.print("Adres IP: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(wifi.localIP());
 }
 
-void setupMQTT(void)
+void setupMQTT(PubSubClient client)
 {
   const char *client_id = CLIENT_ID;
   const char *client_username = CLIENT_USERNAME;
@@ -234,20 +225,20 @@ void setupMQTT(void)
   char msg[255];
   StaticJsonDocument<255> doc;
 
-  while (!mqtt_client.connected())
+  while (!client.connected())
   {
-    mqtt_client.connect(client_id, client_username, client_pass);
+    client.connect(client_id, client_username, client_pass);
     Serial.println("connecting to broker: ");
     Serial.println(mqtt_client.state());
 
     delay(5000);
   }
-
+   mqtt_client.setServer(mqtt_server, mqtt_port);
   // opublikowanie w odpowiednim temacie informacji o sukcesie połączenia.
   
   doc["serialNumber"] = device_name;
   serializeJson(doc, msg);
-  mqtt_client.publish("/sensor/connect", msg);
+  client.publish("/sensor/connect", msg);
  
   for (uint8_t i = 0; i < request_methods_qty; i++)
   {
@@ -255,11 +246,11 @@ void setupMQTT(void)
     strcpy(topic, rpc_request_topic);
     strcat(topic, request_methods[i]);
     strcat(topic, "/+");
-    mqtt_client.subscribe(topic);
+    client.subscribe(topic);
   }
   
   // mqtt_client.subscribe("v1/devices/me/rpc/request/setValueLED/+");
-  mqtt_client.setCallback(callback);
+  client.setCallback(callback);
 }
 
 bool IRAM_ATTR TimerHandler(void *timerNumber)
@@ -271,17 +262,20 @@ bool IRAM_ATTR TimerHandler(void *timerNumber)
 
 void setup()
 {
-  u8g2.begin();
-  u8g2.setFont(u8g2_font_ncenB08_tr);
-  u8g2.clear();
-  lineht = u8g2.getMaxCharHeight() + 10;
-
   Serial.begin(9600);
   Serial.println("Uruchamianie szklarni");
   Serial.printf("CPU speed: %d MHz\n", getCpuFrequencyMhz());
 
+  
+
+  Sensor sensors[3];
+  for(int i=0;i< sizeof(sensors)/sizeof(sensors[0]); i++){
+    sensors[i] = Sensor();
+  }
+  sensors[0].Setup();
+
   setupWIFI();
-  setupMQTT();
+  setupMQTT(mqtt_client);
 
   // setup pinów
   ledcSetup(LED_CHANNEL, 1000, 8);
@@ -321,16 +315,13 @@ void loop()
 
       if (int DHTerror = dht22.read2(&temperature, &humidity, NULL) != SimpleDHTErrSuccess)
       {
-        u8g2.setCursor(0, 10);
-        u8g2.print(SimpleDHTErrCode(DHTerror));
-        u8g2.sendBuffer();
       }
 
-      u8g2.clear();
+
       sprintf(buf, "Temp: %.1f *C", temperature);
-      oledPrint(0, 10, buf);
+
       sprintf(buf, "Hum: %d RH", (int)humidity);
-      oledPrint(0, 10 + lineht, buf);
+
 
       StaticJsonDocument<255> doc;
       StaticJsonDocument<255> alrm;
