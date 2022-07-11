@@ -127,6 +127,9 @@ void updateAttributes()
   doc["fan_state"] = fan_state;
   doc["water_pump_state"] = water_pump;
 
+  //petla
+  doc[getnazwa[i]] = getvalue[i];
+
   serializeJson(doc, mqtt_msg);
   mqtt_client.publish(data_topic, mqtt_msg);
   Serial.println("Publishing attributes");
