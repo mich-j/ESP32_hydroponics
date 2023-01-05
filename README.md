@@ -60,4 +60,4 @@ _Controller based on ESP32_
 - [x] RPC implementation - controlling GPIO and PWM from dashboard
 - [x] Building and running actual prototype
 - [ ] Finish implementing OLED
-- [ ] Impro
+- [ ] Improve the construction
