@@ -59,5 +59,6 @@ _Controller based on ESP32_
 - [x] Sending telemetry to Thingsboard server
 - [x] RPC implementation - controlling GPIO and PWM from dashboard
 - [x] Building and running actual prototype
-- [ ] Finish implementing OLED
+- [ ] Finish implementing OLED screen display
+- [ ] Add fully autonomous operation mode
 - [ ] Improve the construction
